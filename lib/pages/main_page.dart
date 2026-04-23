@@ -50,36 +50,34 @@ class _MainPageState extends State<MainPage> {
             fontWeight: FontWeight(700),
           ),
         ),
-        content: SizedBox(
-          height: 171,
-          child: Column(
-            children: [
-              Text(
-                'Debes tener una cuenta para acceder a esta sección.',
-                style: TextStyle(color: AppTheme.foregroundColor),
-              ),
-              SizedBox(height: 15),
-              WarningModalBtn(
-                onPressed: () {},
-                text: 'Iniciar Sesion',
-                icon: Icon(Icons.login, color: AppTheme.primaryColor),
-              ),
-              SizedBox(height: 10),
-              WarningModalBtn(
-                onPressed: () {},
-                text: 'Crear Cuenta',
-                icon: Icon(Icons.person_add, color: AppTheme.primaryColor),
-              ),
-              SizedBox(height: 10),
-              WarningModalBtn(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                text: 'Continuar',
-                icon: Icon(Icons.next_plan, color: AppTheme.primaryColor),
-              ),
-            ],
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Debes tener una cuenta para acceder a esta sección.',
+              style: TextStyle(color: AppTheme.foregroundColor),
+            ),
+            SizedBox(height: 15),
+            WarningModalBtn(
+              onPressed: () {},
+              text: 'Iniciar Sesion',
+              icon: Icon(Icons.login, color: AppTheme.primaryColor),
+            ),
+            SizedBox(height: 10),
+            WarningModalBtn(
+              onPressed: () {},
+              text: 'Crear Cuenta',
+              icon: Icon(Icons.person_add, color: AppTheme.primaryColor),
+            ),
+            SizedBox(height: 10),
+            WarningModalBtn(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              text: 'Continuar',
+              icon: Icon(Icons.next_plan, color: AppTheme.primaryColor),
+            ),
+          ],
         ),
       ),
     );
