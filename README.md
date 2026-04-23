@@ -1,17 +1,15 @@
-# vibe_trade_v1
+# Cómo levantar el proyecto
 
-A new Flutter project.
+En la terminal, ejecuta:
 
-## Getting Started
+```flutter run```
 
-This project is a starting point for a Flutter application.
+Se te pedirá seleccionar un dispositivo. Las opciones disponibles son:
 
-A few resources to get you started if this is your first Flutter project:
+- **Windows** — Corre la app como aplicación de escritorio
+- **Chrome** — Corre la app en el navegador Chrome
+- **Edge** — Corre la app en el navegador Edge
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Selecciona el número correspondiente al dispositivo que quieras usar.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+> **Nota:** Si tienes un dispositivo Android conectado y en modo desarrollador, Flutter lo detecta automáticamente y lo usa por defecto sin pedirte seleccionar.
