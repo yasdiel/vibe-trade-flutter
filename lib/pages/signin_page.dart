@@ -81,6 +81,7 @@ class _SigninPageState extends State<SigninPage> {
                   });
                   return;
                 }
+                Navigator.pushReplacementNamed(context, '/home');
               },
             ),
             SizedBox(height: 10),

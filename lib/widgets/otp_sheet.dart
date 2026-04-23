@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class OtpSheet extends StatefulWidget {
   final String phoneNumber;
@@ -39,12 +40,12 @@ class _OtpSheetState extends State<OtpSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Ingresa el código',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight(700),
-                color: Colors.red,
+                color: AppTheme.primaryColor,
               ),
             ),
             const SizedBox(height: 4),
@@ -105,7 +106,9 @@ class _OtpSheetState extends State<OtpSheet> {
               height: 50,
               child: ElevatedButton(
                 style: ButtonStyle(
-                  backgroundColor: WidgetStateProperty.all(Colors.red),
+                  backgroundColor: WidgetStateProperty.all(
+                    AppTheme.primaryColor,
+                  ),
                   shape: WidgetStateProperty.all(
                     RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -121,18 +124,15 @@ class _OtpSheetState extends State<OtpSheet> {
                     });
                     return;
                   }
+
+                  Navigator.pushReplacementNamed(context, '/home');
                 },
-                child: InkWell(
-                  onTap: () => {
-                    Navigator.pushReplacementNamed(context, '/home'),
-                  },
-                  child: const Text(
-                    'Verificar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+                child: Text(
+                  'Verificar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppTheme.foregroundColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

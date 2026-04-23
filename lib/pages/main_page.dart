@@ -4,7 +4,6 @@ import 'package:vibe_trade_v1/pages/home_page.dart';
 import 'package:vibe_trade_v1/pages/profile_page.dart';
 import 'package:vibe_trade_v1/pages/reels_page.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
-import 'package:vibe_trade_v1/widgets/intro_btn.dart';
 import 'package:vibe_trade_v1/widgets/warning_modal_btn.dart';
 
 class MainPage extends StatefulWidget {
@@ -16,7 +15,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0; // índice de la pestaña activa
-  bool isLoged = false; // estado de inicio de sesión (falso por defecto)
+  bool isLoged = true; // estado de inicio de sesión (falso por defecto)
 
   // Lista de pestañas pata iterar sobre ellas
   final List<Widget> _pages = [
@@ -59,13 +58,17 @@ class _MainPageState extends State<MainPage> {
             ),
             SizedBox(height: 15),
             WarningModalBtn(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/signin');
+              },
               text: 'Iniciar Sesion',
               icon: Icon(Icons.login, color: AppTheme.primaryColor),
             ),
             SizedBox(height: 10),
             WarningModalBtn(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/signup');
+              },
               text: 'Crear Cuenta',
               icon: Icon(Icons.person_add, color: AppTheme.primaryColor),
             ),
@@ -90,26 +93,31 @@ class _MainPageState extends State<MainPage> {
         shape: Border(bottom: BorderSide(color: Colors.grey, width: 1)),
         automaticallyImplyLeading: false,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 10.0),
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/signin');
-              },
-              label: Text(
-                'Iniciar Sesion',
-                style: TextStyle(color: AppTheme.foregroundColor),
-              ),
-              icon: Icon(Icons.login, color: AppTheme.foregroundColor),
-              style: TextButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadiusGeometry.circular(10),
+          isLoged
+              ? Text('Esta logeado')
+              : Padding(
+                  padding: EdgeInsets.only(right: 10.0),
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/signin');
+                    },
+                    label: Text(
+                      'Iniciar Sesion',
+                      style: TextStyle(color: AppTheme.foregroundColor),
+                    ),
+                    icon: Icon(Icons.login, color: AppTheme.foregroundColor),
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadiusGeometry.circular(10),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-              ),
-            ),
-          ),
         ],
       ),
       body: _pages[_selectedIndex],

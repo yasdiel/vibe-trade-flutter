@@ -4,7 +4,7 @@ import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/phone_input.dart';
 import '../models/country_model.dart';
 import '../widgets/intro_btn.dart';
-import '../widgets/OtpSheet.dart';
+import '../widgets/otp_sheet.dart';
 
 class SignUp extends StatefulWidget {
   const SignUp({super.key});
