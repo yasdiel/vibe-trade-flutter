@@ -89,7 +89,9 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.appBgColor,
       appBar: AppBar(
+        backgroundColor: AppTheme.appBgColor,
         shape: Border(bottom: BorderSide(color: Colors.grey, width: 1)),
         automaticallyImplyLeading: false,
         actions: [
@@ -126,7 +128,7 @@ class _MainPageState extends State<MainPage> {
           border: Border(top: BorderSide(color: Colors.grey, width: 1)),
         ),
         child: BottomNavigationBar(
-          backgroundColor: AppTheme.foregroundColor,
+          backgroundColor: AppTheme.appBgColor,
           selectedItemColor: AppTheme.primaryColor,
           unselectedItemColor: Colors.grey,
           type: BottomNavigationBarType.fixed,

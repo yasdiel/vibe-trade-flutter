@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/screens/account_screen.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -15,7 +16,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Aquí defines el contenido de cada tab
   final List<Widget> _tabContent = [
-    const Center(child: Text('Contenido de Cuenta')),
+    AccountScreen(),
     const Center(child: Text('Contenido de Mis Reels')),
     const Center(child: Text('Contenido de Guardados')),
     const Center(child: Text('Contenido de Tiendas')),
@@ -27,12 +28,12 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         // Header "Perfil"
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Container(
             padding: EdgeInsets.all(10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
-              color: Colors.grey.shade200,
+              color: AppTheme.foregroundColor,
             ),
             child: Row(
               children: [
@@ -83,7 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppTheme.selectedColor
-                        : Colors.grey.shade100,
+                        : AppTheme.foregroundColor,
                     borderRadius: BorderRadius.circular(30),
                     border: Border.all(
                       color: isSelected
