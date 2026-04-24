@@ -77,6 +77,55 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
 
             // Social Media
             SocialMediaConfiguration(),
+            SizedBox(height: 20),
+
+            // Pasarelas de pago
+
+            //Cerrar Sesion
+            SizedBox(
+              width: double.infinity,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppTheme.primaryColor, width: 1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(5),
+
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/signin');
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.foregroundColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.logout,
+                          size: 17,
+                          color: AppTheme.primaryColor,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Cerrar Sesion',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight(600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
