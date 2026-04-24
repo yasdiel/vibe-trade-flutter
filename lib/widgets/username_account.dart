@@ -20,6 +20,10 @@ class _UsernameAccountState extends State<UsernameAccount> {
     );
   }
 
+  void dispose() {
+    _nombreController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(

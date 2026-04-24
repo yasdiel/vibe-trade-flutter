@@ -20,6 +20,10 @@ class _EmailConfigurationState extends State<EmailConfiguration> {
     );
   }
 
+  void dispose() {
+    _emailController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(

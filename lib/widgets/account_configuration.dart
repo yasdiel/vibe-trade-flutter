@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/email_configuration.dart';
 import 'package:vibe_trade_v1/widgets/image_account.dart';
+import 'package:vibe_trade_v1/widgets/phone_configuration.dart';
 import 'package:vibe_trade_v1/widgets/username_account.dart';
 
 class ConfiguracionUsuario extends StatefulWidget {
@@ -62,6 +63,10 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
 
             // Email
             EmailConfiguration(),
+            const SizedBox(height: 20),
+
+            //Phone Number
+            PhoneConfiguration(),
           ],
         ),
       ),
