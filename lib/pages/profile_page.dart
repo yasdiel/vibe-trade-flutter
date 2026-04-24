@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/screens/account_screen.dart';
+import 'package:vibe_trade_v1/screens/stores_screen.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -19,7 +20,7 @@ class _ProfilePageState extends State<ProfilePage> {
     AccountScreen(),
     const Center(child: Text('Contenido de Mis Reels')),
     const Center(child: Text('Contenido de Guardados')),
-    const Center(child: Text('Contenido de Tiendas')),
+    StoresScreen(),
   ];
   @override
   Widget build(BuildContext context) {
