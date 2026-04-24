@@ -12,10 +12,37 @@ class _XWidgetState extends State<XWidget> {
   final TextEditingController _xController = TextEditingController();
 
   void _guardarX() {
+    final xValue = _xController.text.trim();
+
+    if (xValue.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El usuario o enlace no puede estar vacio')),
+      );
+      return;
+    }
+
+    final esUsuario = RegExp(r'^@?[a-zA-Z0-9_]{1,15}$').hasMatch(xValue);
+    final esUrl = xValue.startsWith('https://') || xValue.startsWith('http://');
+
+    if (!esUsuario && !esUrl) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Introduce un usuario de X valido o un enlace correcto'),
+        ),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('X guardado: ${_xController.text}')));
+    ).showSnackBar(SnackBar(content: Text('X guardado: $xValue')));
+  }
+
+  @override
+  void dispose() {
+    _xController.dispose();
+    super.dispose();
   }
 
   @override

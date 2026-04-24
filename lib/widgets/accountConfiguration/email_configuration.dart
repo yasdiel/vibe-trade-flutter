@@ -14,15 +14,56 @@ class _EmailConfigurationState extends State<EmailConfiguration> {
   );
 
   void _guardarEmail() {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El email no puede estar vacio')),
+      );
+      return;
+    }
+
+    if (email.contains(' ')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El email no puede contener espacios')),
+      );
+      return;
+    }
+
+    if (!email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Introduce un email valido con @ y un .'),
+        ),
+      );
+      return;
+    }
+
+    final partes = email.split('@');
+    if (partes.length != 2 || partes.first.isEmpty || partes.last.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Introduce un email valido')),
+      );
+      return;
+    }
+
+    if (!partes.last.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El dominio del email no es valido')),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Email guardado: ${_emailController.text}')),
+      SnackBar(content: Text('Email guardado: $email')),
     );
   }
 
   @override
   void dispose() {
     _emailController.dispose();
+    super.dispose();
   }
 
   @override

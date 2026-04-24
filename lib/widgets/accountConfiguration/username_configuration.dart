@@ -14,14 +14,43 @@ class _UsernameAccountState extends State<UsernameAccount> {
   );
 
   void _guardarNombre() {
+    final nombre = _nombreController.text.trim();
+
+    if (nombre.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El nombre no puede estar vacio')),
+      );
+      return;
+    }
+
+    if (nombre.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El nombre debe tener al menos 3 caracteres'),
+        ),
+      );
+      return;
+    }
+
+    if (RegExp(r'^\d+$').hasMatch(nombre)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El nombre no puede estar formado solo por numeros'),
+        ),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Nombre guardado: ${_nombreController.text}')),
+      SnackBar(content: Text('Nombre guardado: $nombre')),
     );
   }
 
+  @override
   void dispose() {
     _nombreController.dispose();
+    super.dispose();
   }
 
   @override

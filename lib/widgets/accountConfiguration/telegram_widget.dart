@@ -12,10 +12,41 @@ class _TelegramWidgetState extends State<TelegramWidget> {
   final TextEditingController _telegramController = TextEditingController();
 
   void _guardarTelegram() {
+    final telegram = _telegramController.text.trim();
+
+    if (telegram.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El usuario o enlace no puede estar vacio')),
+      );
+      return;
+    }
+
+    final esUsuario = RegExp(r'^[a-zA-Z][a-zA-Z0-9_]{4,31}$').hasMatch(telegram);
+    final esUrl =
+        telegram.startsWith('https://t.me/') ||
+        telegram.startsWith('http://t.me/');
+
+    if (!esUsuario && !esUrl) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Introduce un usuario de Telegram valido o un enlace t.me',
+          ),
+        ),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Telegram guardado: ${_telegramController.text}')),
+      SnackBar(content: Text('Telegram guardado: $telegram')),
     );
+  }
+
+  @override
+  void dispose() {
+    _telegramController.dispose();
+    super.dispose();
   }
 
   @override

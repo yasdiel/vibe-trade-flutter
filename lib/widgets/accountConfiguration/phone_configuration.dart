@@ -16,6 +16,7 @@ class _PhoneConfigurationState extends State<PhoneConfiguration> {
   @override
   void dispose() {
     _phoneController.dispose();
+    super.dispose();
   }
 
   @override

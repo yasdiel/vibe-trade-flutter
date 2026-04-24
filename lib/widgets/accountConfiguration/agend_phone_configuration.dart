@@ -13,15 +13,34 @@ class AgendPhoneConfiguration extends StatefulWidget {
 class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
   final TextEditingController _phoneController = TextEditingController();
   void _guardarNumero() {
+    final numero = _phoneController.text.trim();
+
+    if (numero.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El numero no puede estar vacio')),
+      );
+      return;
+    }
+
+    if (numero.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Introduce un numero de telefono valido'),
+        ),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Numero guardado: ${_phoneController.text}')),
+      SnackBar(content: Text('Numero guardado: $numero')),
     );
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    super.dispose();
   }
 
   @override

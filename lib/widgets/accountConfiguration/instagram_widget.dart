@@ -12,12 +12,37 @@ class _InstagramWidgetState extends State<InstagramWidget> {
   final TextEditingController _instagramController = TextEditingController();
 
   void _guardarInstagram() {
+    final instagram = _instagramController.text.trim();
+
+    if (instagram.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El usuario o enlace no puede estar vacio')),
+      );
+      return;
+    }
+
+    final esUsuario = RegExp(r'^@?[a-zA-Z0-9._]{3,30}$').hasMatch(instagram);
+    final esUrl = instagram.startsWith('https://') || instagram.startsWith('http://');
+
+    if (!esUsuario && !esUrl) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Introduce un usuario valido o un enlace correcto'),
+        ),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Instagram guardado: ${_instagramController.text}'),
-      ),
+      SnackBar(content: Text('Instagram guardado: $instagram')),
     );
+  }
+
+  @override
+  void dispose() {
+    _instagramController.dispose();
+    super.dispose();
   }
 
   @override
