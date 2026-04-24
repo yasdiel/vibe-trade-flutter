@@ -20,6 +20,7 @@ class _EmailConfigurationState extends State<EmailConfiguration> {
     );
   }
 
+  @override
   void dispose() {
     _emailController.dispose();
   }

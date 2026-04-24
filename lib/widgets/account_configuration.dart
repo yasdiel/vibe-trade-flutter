@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/contacts_configuration.dart';
 import 'package:vibe_trade_v1/widgets/email_configuration.dart';
 import 'package:vibe_trade_v1/widgets/image_account.dart';
 import 'package:vibe_trade_v1/widgets/phone_configuration.dart';
-import 'package:vibe_trade_v1/widgets/username_account.dart';
+import 'package:vibe_trade_v1/widgets/username_configuration.dart';
 
 class ConfiguracionUsuario extends StatefulWidget {
   const ConfiguracionUsuario({super.key});
@@ -67,6 +68,11 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
 
             //Phone Number
             PhoneConfiguration(),
+            const SizedBox(height: 20),
+
+            // Agenda
+            ContactsConfiguration(),
+            SizedBox(height: 20),
           ],
         ),
       ),
