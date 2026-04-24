@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:vibe_trade_v1/widgets/account_configuration.dart';
+import 'package:vibe_trade_v1/widgets/accountConfiguration/account_configuration.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../../theme/app_theme.dart';
 
 class UsernameAccount extends StatefulWidget {
   const UsernameAccount({super.key});
@@ -51,7 +51,7 @@ class _UsernameAccountState extends State<UsernameAccount> {
               child: TextField(
                 controller: _nombreController,
                 decoration: InputDecoration(
-                  hintText: 'Usuario sin nombre',
+                  hintText: 'Jhon Doe',
                   filled: true,
                   fillColor: const Color(0xFFF5F5F5),
                   border: OutlineInputBorder(
