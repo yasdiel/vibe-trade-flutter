@@ -1,27 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../theme/app_theme.dart';
 
-class AgendPhoneConfiguration extends StatefulWidget {
-  const AgendPhoneConfiguration({super.key});
+class TelegramWidget extends StatefulWidget {
+  const TelegramWidget({super.key});
 
   @override
-  State<AgendPhoneConfiguration> createState() =>
-      _AgendPhoneConfigurationState();
+  State<TelegramWidget> createState() => _TelegramWidgetState();
 }
 
-class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
-  final TextEditingController _phoneController = TextEditingController();
-  void _guardarNumero() {
+class _TelegramWidgetState extends State<TelegramWidget> {
+  final TextEditingController _telegramController = TextEditingController();
+
+  void _guardarTelegram() {
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Numero guardado: ${_phoneController.text}')),
+      SnackBar(content: Text('Telegram guardado: ${_telegramController.text}')),
     );
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
   }
 
   @override
@@ -29,11 +23,9 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
     return Column(
       children: [
         Row(
-          children: const [
-            Icon(Icons.phone, size: 16, color: Colors.black54),
-            SizedBox(width: 6),
+          children: [
             Text(
-              'Numero de telefono',
+              'Usuario o enlace',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -49,12 +41,10 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
           children: [
             Expanded(
               child: TextField(
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: TextStyle(fontSize: 14),
-                controller: _phoneController,
+                controller: _telegramController,
                 decoration: InputDecoration(
+                  hintText: '@user o https://...',
                   isDense: true,
-                  hintText: 'Ej. +53 34567434',
                   filled: true,
                   fillColor: const Color(0xFFF5F5F5),
                   border: OutlineInputBorder(
@@ -63,36 +53,14 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
-                    vertical: 10,
+                    vertical: 12,
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 5),
-            ElevatedButton.icon(
-              onPressed: _guardarNumero,
-              icon: Icon(Icons.add, size: 14),
-              label: Text('Agregar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: AppTheme.foregroundColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 10,
                 ),
               ),
             ),
           ],
         ),
-        SizedBox(height: 15),
-        Divider(height: 1, color: Colors.grey),
-        SizedBox(
-          height: 200,
-          child: Center(child: Text('No tienes contactos registrados')),
-        ),
+        SizedBox(height: 30),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -111,7 +79,26 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
                   'Cerrar',
                   style: TextStyle(
                     color: AppTheme.primaryColor,
-                    fontSize: 15,
+                    fontSize: 13,
+                    fontWeight: FontWeight(700),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 5),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                side: BorderSide(color: AppTheme.primaryColor, width: 1),
+              ),
+              onPressed: _guardarTelegram,
+
+              child: Center(
+                child: Text(
+                  'Guardar',
+                  style: TextStyle(
+                    color: AppTheme.foregroundColor,
+                    fontSize: 13,
                     fontWeight: FontWeight(700),
                   ),
                 ),

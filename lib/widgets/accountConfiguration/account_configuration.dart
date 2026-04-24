@@ -4,6 +4,7 @@ import 'package:vibe_trade_v1/widgets/accountConfiguration/contacts_configuratio
 import 'package:vibe_trade_v1/widgets/accountConfiguration/email_configuration.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/image_configuration.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/phone_configuration.dart';
+import 'package:vibe_trade_v1/widgets/accountConfiguration/social_media_configuration.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/username_configuration.dart';
 
 class ConfiguracionUsuario extends StatefulWidget {
@@ -73,6 +74,9 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
             // Agenda
             ContactsConfiguration(),
             SizedBox(height: 20),
+
+            // Social Media
+            SocialMediaConfiguration(),
           ],
         ),
       ),
