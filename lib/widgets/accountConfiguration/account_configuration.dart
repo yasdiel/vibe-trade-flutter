@@ -15,6 +15,105 @@ class ConfiguracionUsuario extends StatefulWidget {
 }
 
 class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
+  void _showPaymentGatewaysDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: AppTheme.foregroundColor,
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.accentGreenSurfaceColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.account_balance_wallet_outlined,
+                color: AppTheme.accentGreenColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Pasarelas de pago',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Aqui podras conectar y administrar tus metodos de cobro cuando esta configuracion este disponible.',
+          style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.accentGreenColor,
+            ),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    required Color borderColor,
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: borderColor, width: 1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: foregroundColor),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: foregroundColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -80,51 +179,26 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
             SizedBox(height: 20),
 
             // Pasarelas de pago
+            _buildActionButton(
+              label: 'Configurar pasarelas de pago',
+              icon: Icons.account_balance_wallet_outlined,
+              onTap: _showPaymentGatewaysDialog,
+              borderColor: AppTheme.accentGreenColor,
+              backgroundColor: AppTheme.accentGreenSurfaceColor,
+              foregroundColor: AppTheme.accentGreenColor,
+            ),
+            const SizedBox(height: 14),
 
             //Cerrar Sesion
-            SizedBox(
-              width: double.infinity,
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.primaryColor, width: 1),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(5),
-
-                  onTap: () {
-                    Navigator.pushReplacementNamed(context, '/signin');
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.foregroundColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.logout,
-                          size: 17,
-                          color: AppTheme.primaryColor,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          'Cerrar Sesion',
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: AppTheme.primaryColor,
-                            fontWeight: FontWeight(600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            _buildActionButton(
+              label: 'Cerrar Sesion',
+              icon: Icons.logout,
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/signin');
+              },
+              borderColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.foregroundColor,
+              foregroundColor: AppTheme.primaryColor,
             ),
           ],
         ),
