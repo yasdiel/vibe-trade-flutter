@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/screens/account_screen.dart';
+import 'package:vibe_trade_v1/screens/saved_offerts.dart';
 import 'package:vibe_trade_v1/screens/stores_screen.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
@@ -19,7 +20,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final List<Widget> _tabContent = [
     AccountScreen(),
     const Center(child: Text('Contenido de Mis Reels')),
-    const Center(child: Text('Contenido de Guardados')),
+    SavedOfferts(),
     StoresScreen(),
   ];
   @override
