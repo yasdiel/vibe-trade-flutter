@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 import '../models/country_model.dart';
-import '../widgets/intro_btn.dart';
 
 class PhoneInput extends StatefulWidget {
   final List<CountryModel> countries;
@@ -35,8 +34,8 @@ class _PhoneInputState extends State<PhoneInput> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
-        mainAxisAlignment: .center,
-        crossAxisAlignment: .center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
