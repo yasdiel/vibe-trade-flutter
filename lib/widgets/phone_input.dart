@@ -23,10 +23,37 @@ class _PhoneInputState extends State<PhoneInput> {
 
   @override
   void initState() {
+    super.initState();
     // Select the first one for default
     if (widget.countries.isNotEmpty) {
       _selectedCountry = widget.countries.first;
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant PhoneInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.countries.isEmpty) {
+      _selectedCountry = null;
+      return;
+    }
+
+    final selectedStillExists = widget.countries.contains(_selectedCountry);
+    if (!selectedStillExists) {
+      _selectedCountry = widget.countries.first;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selectedCountry == null) {
+          return;
+        }
+        widget.onChanged(_selectedCountry!.dial, _phoneController.text);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
   }
 
   @override
@@ -66,13 +93,13 @@ class _PhoneInputState extends State<PhoneInput> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              country.code,
+                              country.dial,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(country.name),
+                            Expanded(child: Text('${country.name} (${country.code})')),
                           ],
                         ),
                       );
@@ -80,7 +107,7 @@ class _PhoneInputState extends State<PhoneInput> {
                     onChanged: (value) {
                       setState(() => _selectedCountry = value);
                       widget.onChanged(
-                        _selectedCountry!.code,
+                        _selectedCountry!.dial,
                         _phoneController.text,
                       );
                     },
@@ -105,7 +132,7 @@ class _PhoneInputState extends State<PhoneInput> {
                         Icon(Icons.phone_outlined, size: 18),
                         SizedBox(width: 6),
                         Text(
-                          _selectedCountry?.code ?? '',
+                          _selectedCountry?.dial ?? '',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ],
@@ -121,7 +148,7 @@ class _PhoneInputState extends State<PhoneInput> {
                         hintText: '11 5555 5555',
                       ),
                       onChanged: (value) {
-                        widget.onChanged(_selectedCountry?.code ?? '', value);
+                        widget.onChanged(_selectedCountry?.dial ?? '', value);
                       },
                     ),
                   ),

@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import '../../theme/app_theme.dart';
 
 class EmailConfiguration extends StatefulWidget {
-  const EmailConfiguration({super.key});
+  final String initialValue;
+
+  const EmailConfiguration({super.key, this.initialValue = ''});
 
   @override
   State<EmailConfiguration> createState() => _EmailConfigurationState();
 }
 
 class _EmailConfigurationState extends State<EmailConfiguration> {
-  final TextEditingController _emailController = TextEditingController(
-    text: '',
-  );
+  late final TextEditingController _emailController;
+  bool _saving = false;
 
-  void _guardarEmail() {
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialValue);
+  }
+
+  Future<void> _guardarEmail() async {
     final email = _emailController.text.trim();
 
     if (email.isEmpty) {
@@ -55,9 +63,41 @@ class _EmailConfigurationState extends State<EmailConfiguration> {
     }
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Email guardado: $email')),
-    );
+    setState(() => _saving = true);
+    try {
+      await AuthService.updateUserProfile(email: email);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Email guardado: $email')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant EmailConfiguration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue &&
+        _emailController.text != widget.initialValue) {
+      _emailController.text = widget.initialValue;
+    }
   }
 
   @override
@@ -109,9 +149,15 @@ class _EmailConfigurationState extends State<EmailConfiguration> {
             ),
             const SizedBox(width: 10),
             ElevatedButton.icon(
-              onPressed: _guardarEmail,
-              icon: const Icon(Icons.save_outlined, size: 16),
-              label: const Text('Guardar'),
+              onPressed: _saving ? null : _guardarEmail,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined, size: 16),
+              label: Text(_saving ? 'Guardando...' : 'Guardar'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: AppTheme.foregroundColor,

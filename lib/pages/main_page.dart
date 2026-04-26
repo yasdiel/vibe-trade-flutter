@@ -3,7 +3,9 @@ import 'package:vibe_trade_v1/pages/chat_page.dart';
 import 'package:vibe_trade_v1/pages/home_page.dart';
 import 'package:vibe_trade_v1/pages/profile_page.dart';
 import 'package:vibe_trade_v1/pages/reels_page.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/app_bar/trust_app_bar_actions.dart';
 import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
 import 'package:vibe_trade_v1/widgets/warning_modal_btn.dart';
 
@@ -16,7 +18,8 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
-  bool isLoged = true;
+  bool _isLoged = false;
+  bool _checkingSession = true;
 
   final List<Widget> _pages = const [
     HomePage(),
@@ -32,8 +35,43 @@ class _MainPageState extends State<MainPage> {
     _MainNavItem(label: 'Profile', icon: Icons.person_outline),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    AuthService.isLoggedInNotifier.addListener(_handleSessionChanged);
+    _hydrateSession();
+  }
+
+  Future<void> _hydrateSession() async {
+    final isLoggedIn = await AuthService.hydrateSession();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isLoged = isLoggedIn;
+      _checkingSession = false;
+    });
+  }
+
+  void _handleSessionChanged() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isLoged = AuthService.isLoggedInNotifier.value;
+    });
+  }
+
+  @override
+  void dispose() {
+    AuthService.isLoggedInNotifier.removeListener(_handleSessionChanged);
+    super.dispose();
+  }
+
   void _onItemTapped(int index) {
-    if (isLoged) {
+    if (_isLoged) {
       setState(() => _selectedIndex = index);
     } else {
       _showDialog();
@@ -91,7 +129,18 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
+  void _showNotifications() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Notificaciones proximamente')),
+    );
+  }
+
   Widget _buildDesktopShell() {
+    if (_checkingSession) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.appBgColor,
       body: SafeArea(
@@ -213,7 +262,7 @@ class _MainPageState extends State<MainPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (!isLoged)
+                  if (!_isLoged)
                     SizedBox(
                       width: double.infinity,
                       child: TextButton.icon(
@@ -264,26 +313,11 @@ class _MainPageState extends State<MainPage> {
                               color: Colors.black87,
                             ),
                           ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isLoged
-                                  ? AppTheme.selectedColor
-                                  : Colors.orange.shade50,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              isLoged ? 'Sesion iniciada' : 'Modo visitante',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: isLoged
-                                    ? AppTheme.primaryColor
-                                    : Colors.orange.shade800,
-                              ),
+                          const SizedBox(width: 18),
+                          Expanded(
+                            child: TrustAppBarActions(
+                              isLoggedIn: _isLoged,
+                              onNotificationsTap: _showNotifications,
                             ),
                           ),
                         ],
@@ -306,19 +340,26 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _buildMobileShell() {
+    if (_checkingSession) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.appBgColor,
       appBar: AppBar(
         backgroundColor: AppTheme.appBgColor,
         shape: const Border(bottom: BorderSide(color: Colors.grey, width: 1)),
         automaticallyImplyLeading: false,
+        titleSpacing: 12,
+        title: _isLoged
+            ? TrustAppBarActions(
+                isLoggedIn: true,
+                onNotificationsTap: _showNotifications,
+              )
+            : null,
         actions: [
-          isLoged
-              ? const Padding(
-                  padding: EdgeInsets.only(right: 16),
-                  child: Center(child: Text('Esta logeado')),
-                )
-              : Padding(
+          if (!_isLoged)
+            Padding(
                   padding: const EdgeInsets.only(right: 10.0),
                   child: TextButton.icon(
                     onPressed: () {

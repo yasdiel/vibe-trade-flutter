@@ -1,27 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import '../../theme/app_theme.dart';
 
 class TelegramWidget extends StatefulWidget {
-  const TelegramWidget({super.key});
+  final String initialValue;
+
+  const TelegramWidget({super.key, this.initialValue = ''});
 
   @override
   State<TelegramWidget> createState() => _TelegramWidgetState();
 }
 
 class _TelegramWidgetState extends State<TelegramWidget> {
-  final TextEditingController _telegramController = TextEditingController();
+  late final TextEditingController _telegramController;
+  bool _saving = false;
 
-  void _guardarTelegram() {
+  @override
+  void initState() {
+    super.initState();
+    _telegramController = TextEditingController(text: widget.initialValue);
+  }
+
+  Future<void> _guardarTelegram() async {
     final telegram = _telegramController.text.trim();
 
     if (telegram.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El usuario o enlace no puede estar vacio')),
+        const SnackBar(
+          content: Text('El usuario o enlace no puede estar vacio'),
+        ),
       );
       return;
     }
 
-    final esUsuario = RegExp(r'^[a-zA-Z][a-zA-Z0-9_]{4,31}$').hasMatch(telegram);
+    final esUsuario = RegExp(
+      r'^[a-zA-Z][a-zA-Z0-9_]{4,31}$',
+    ).hasMatch(telegram);
     final esUrl =
         telegram.startsWith('https://t.me/') ||
         telegram.startsWith('http://t.me/');
@@ -38,9 +52,33 @@ class _TelegramWidgetState extends State<TelegramWidget> {
     }
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Telegram guardado: $telegram')),
-    );
+    setState(() => _saving = true);
+    try {
+      await AuthService.updateUserProfile(telegram: telegram);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Telegram guardado: $telegram')));
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   @override
@@ -74,7 +112,7 @@ class _TelegramWidgetState extends State<TelegramWidget> {
               child: TextField(
                 controller: _telegramController,
                 decoration: InputDecoration(
-                  hintText: '@user o https://...',
+                  hintText: 'username o https://...',
                   isDense: true,
                   filled: true,
                   fillColor: const Color(0xFFF5F5F5),
@@ -101,7 +139,9 @@ class _TelegramWidgetState extends State<TelegramWidget> {
                 backgroundColor: AppTheme.foregroundColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
-              onPressed: () {
+              onPressed: _saving
+                  ? null
+                  : () {
                 Navigator.pop(context);
               },
 
@@ -122,11 +162,11 @@ class _TelegramWidgetState extends State<TelegramWidget> {
                 backgroundColor: AppTheme.primaryColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
-              onPressed: _guardarTelegram,
+              onPressed: _saving ? null : _guardarTelegram,
 
               child: Center(
                 child: Text(
-                  'Guardar',
+                  _saving ? 'Guardando...' : 'Guardar',
                   style: TextStyle(
                     color: AppTheme.foregroundColor,
                     fontSize: 13,

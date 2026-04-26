@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/new_store_modal.dart';
 
 class StoresScreen extends StatefulWidget {
   const StoresScreen({super.key});
@@ -99,7 +100,7 @@ class _StoresScreenState extends State<StoresScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () => showNewStoreModal(context),
                 icon: const Icon(Icons.add_business_outlined, size: 18),
                 label: const Text(
                   'Agregar tienda',

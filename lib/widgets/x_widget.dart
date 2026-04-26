@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import '../../theme/app_theme.dart';
 
 class XWidget extends StatefulWidget {
-  const XWidget({super.key});
+  final String initialValue;
+
+  const XWidget({super.key, this.initialValue = ''});
 
   @override
   State<XWidget> createState() => _XWidgetState();
 }
 
 class _XWidgetState extends State<XWidget> {
-  final TextEditingController _xController = TextEditingController();
+  late final TextEditingController _xController;
+  bool _saving = false;
 
-  void _guardarX() {
+  @override
+  void initState() {
+    super.initState();
+    _xController = TextEditingController(text: widget.initialValue);
+  }
+
+  Future<void> _guardarX() async {
     final xValue = _xController.text.trim();
 
     if (xValue.isEmpty) {
@@ -34,9 +44,33 @@ class _XWidgetState extends State<XWidget> {
     }
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('X guardado: $xValue')));
+    setState(() => _saving = true);
+    try {
+      await AuthService.updateUserProfile(xAccount: xValue);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('X guardado: $xValue')));
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   @override
@@ -97,7 +131,9 @@ class _XWidgetState extends State<XWidget> {
                 backgroundColor: AppTheme.foregroundColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
-              onPressed: () {
+              onPressed: _saving
+                  ? null
+                  : () {
                 Navigator.pop(context);
               },
 
@@ -118,11 +154,11 @@ class _XWidgetState extends State<XWidget> {
                 backgroundColor: AppTheme.primaryColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
-              onPressed: _guardarX,
+              onPressed: _saving ? null : _guardarX,
 
               child: Center(
                 child: Text(
-                  'Guardar',
+                  _saving ? 'Guardando...' : 'Guardar',
                   style: TextStyle(
                     color: AppTheme.foregroundColor,
                     fontSize: 13,

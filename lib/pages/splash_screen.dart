@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -15,9 +16,13 @@ class _SplashScreenState extends State<SplashScreen> {
     _loadApp();
   }
 
-  _loadApp() async {
-    await Future.delayed(Duration(seconds: 3));
-    Navigator.pushReplacementNamed(context, '/intropage');
+  Future<void> _loadApp() async {
+    await Future.delayed(const Duration(seconds: 3));
+    final isLoggedIn = await AuthService.hydrateSession();
+    if (!mounted) {
+      return;
+    }
+    Navigator.pushReplacementNamed(context, isLoggedIn ? '/home' : '/intropage');
   }
 
   @override

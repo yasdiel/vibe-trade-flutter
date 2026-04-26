@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/config/env.dart';
 import './routes/router.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  env.load();
   runApp(const MyApp());
 }
 

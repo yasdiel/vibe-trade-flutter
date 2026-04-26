@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/models/user_profile_model.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/contacts_configuration.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/email_configuration.dart';
@@ -8,13 +10,17 @@ import 'package:vibe_trade_v1/widgets/accountConfiguration/social_media_configur
 import 'package:vibe_trade_v1/widgets/accountConfiguration/username_configuration.dart';
 
 class ConfiguracionUsuario extends StatefulWidget {
-  const ConfiguracionUsuario({super.key});
+  final UserProfileModel? user;
+
+  const ConfiguracionUsuario({super.key, this.user});
 
   @override
   State<ConfiguracionUsuario> createState() => _ConfiguracionUsuarioState();
 }
 
 class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
+  bool _loggingOut = false;
+
   void _showPaymentGatewaysDialog() {
     showDialog(
       context: context,
@@ -70,7 +76,7 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
   Widget _buildActionButton({
     required String label,
     required IconData icon,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
     required Color borderColor,
     required Color backgroundColor,
     required Color foregroundColor,
@@ -114,6 +120,32 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
     );
   }
 
+  Future<void> _handleSignOut() async {
+    setState(() => _loggingOut = true);
+
+    try {
+      await AuthService.signOut();
+      if (!mounted) {
+        return;
+      }
+      Navigator.pushReplacementNamed(context, '/signin');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loggingOut = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -155,19 +187,22 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
             const SizedBox(height: 24),
 
             // Foto de perfil
-            ImageAccount(),
+            ImageAccount(
+              imageUrl: widget.user?.imageUrl ?? '',
+              fallbackName: widget.user?.name ?? '',
+            ),
             const SizedBox(height: 20),
 
             // Nombre de usuario
-            UsernameAccount(),
+            UsernameAccount(initialValue: widget.user?.name ?? ''),
             const SizedBox(height: 20),
 
             // Email
-            EmailConfiguration(),
+            EmailConfiguration(initialValue: widget.user?.email ?? ''),
             const SizedBox(height: 20),
 
             //Phone Number
-            PhoneConfiguration(),
+            PhoneConfiguration(initialValue: widget.user?.phone ?? ''),
             const SizedBox(height: 20),
 
             // Agenda
@@ -175,7 +210,11 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
             SizedBox(height: 20),
 
             // Social Media
-            SocialMediaConfiguration(),
+            SocialMediaConfiguration(
+              instagramValue: widget.user?.instagram ?? '',
+              xValue: widget.user?.xHandle ?? '',
+              telegramValue: widget.user?.telegram ?? '',
+            ),
             SizedBox(height: 20),
 
             // Pasarelas de pago
@@ -191,11 +230,9 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
 
             //Cerrar Sesion
             _buildActionButton(
-              label: 'Cerrar Sesion',
+              label: _loggingOut ? 'Cerrando Sesion...' : 'Cerrar Sesion',
               icon: Icons.logout,
-              onTap: () {
-                Navigator.pushReplacementNamed(context, '/signin');
-              },
+              onTap: _loggingOut ? null : _handleSignOut,
               borderColor: AppTheme.primaryColor,
               backgroundColor: AppTheme.foregroundColor,
               foregroundColor: AppTheme.primaryColor,

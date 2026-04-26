@@ -3,7 +3,10 @@ import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/desktop_auth_layout.dart';
 import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
 import '../models/country_model.dart';
+import '../services/auth_service.dart';
+import '../services/country_services.dart';
 import '../widgets/intro_btn.dart';
+import '../widgets/otp_sheet.dart';
 import '../widgets/phone_input.dart';
 
 class SigninPage extends StatefulWidget {
@@ -16,14 +19,52 @@ class SigninPage extends StatefulWidget {
 class _SigninPageState extends State<SigninPage> {
   String _phoneCode = '';
   String _phoneNumber = '';
-  final List<CountryModel> _countries = [
-    CountryModel(name: 'Cuba', code: '+53', flag: 'Cu'),
-  ];
+  List<CountryModel> _countries = [];
 
   bool _loadingCountrys = false;
+  bool _loadingCountrysError = false;
+  bool _requestingCode = false;
   bool _showError = false;
+  bool _showRequestError = false;
 
-  void _handleLogin() {
+  @override
+  void initState() {
+    super.initState();
+    _loadCountries();
+  }
+
+  Future<void> _loadCountries() async {
+    setState(() {
+      _loadingCountrys = true;
+      _loadingCountrysError = false;
+    });
+
+    try {
+      final countries = await CountryServices.getCountries();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _countries = countries;
+        _loadingCountrys = false;
+        _loadingCountrysError = false;
+        if (countries.isNotEmpty) {
+          _phoneCode = countries.first.dial;
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loadingCountrys = false;
+        _loadingCountrysError = true;
+      });
+    }
+  }
+
+  Future<void> _handleLogin() async {
     if (_phoneNumber.length < 7) {
       setState(() => _showError = true);
       Future.delayed(const Duration(seconds: 3), () {
@@ -34,7 +75,34 @@ class _SigninPageState extends State<SigninPage> {
       return;
     }
 
-    Navigator.pushReplacementNamed(context, '/home');
+    setState(() {
+      _requestingCode = true;
+      _showRequestError = false;
+    });
+
+    try {
+      await AuthService.requestCode(phone: _phoneNumber);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _requestingCode = false;
+        _showRequestError = true;
+      });
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _requestingCode = false);
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => OtpSheet(phoneNumber: _phoneNumber, code: _phoneCode),
+      isScrollControlled: true,
+    );
   }
 
   Widget _buildForm({required bool isDesktop, required double width}) {
@@ -47,17 +115,7 @@ class _SigninPageState extends State<SigninPage> {
           Center(child: Image.asset('assets/images/logo.png')),
           const SizedBox(height: 24),
         ],
-        _loadingCountrys
-            ? const CircularProgressIndicator()
-            : PhoneInput(
-                countries: _countries,
-                onChanged: (code, number) {
-                  setState(() {
-                    _phoneCode = code;
-                    _phoneNumber = number;
-                  });
-                },
-              ),
+        _buildCountrySection(isDesktop: isDesktop, width: width),
         const SizedBox(height: 20),
         if (_showError)
           const Padding(
@@ -70,12 +128,26 @@ class _SigninPageState extends State<SigninPage> {
               ),
             ),
           ),
+        if (_showRequestError)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'No se pudo solicitar el codigo. Intenta nuevamente.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         const SizedBox(height: 10),
         Center(
           child: IntroBtn(
-            text: 'Iniciar Sesion',
+            text: _requestingCode ? 'Solicitando codigo...' : 'Iniciar Sesion',
             width: isDesktop ? width : 250,
             height: isDesktop ? 46 : 40,
+            enabled:
+                !_loadingCountrys && !_loadingCountrysError && !_requestingCode,
             onTap: _handleLogin,
           ),
         ),
@@ -106,7 +178,93 @@ class _SigninPageState extends State<SigninPage> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton(
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/home');
+            },
+            child: Text(
+              'Continuar sin cuenta',
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildCountrySection({required bool isDesktop, required double width}) {
+    if (_loadingCountrys) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 12),
+            Text(
+              'Cargando paises...',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color.fromARGB(255, 134, 125, 125),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_loadingCountrysError) {
+      return Center(
+        child: Column(
+          children: [
+            const Text(
+              'Hubo un error al cargar los paises.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: isDesktop ? width : 250,
+              child: OutlinedButton.icon(
+                onPressed: _loadCountries,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: Size(isDesktop ? width : 250, isDesktop ? 46 : 40),
+                  foregroundColor: AppTheme.primaryColor,
+                  side: BorderSide(color: AppTheme.primaryColor),
+                  backgroundColor: AppTheme.selectedColor,
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return PhoneInput(
+      countries: _countries,
+      onChanged: (code, number) {
+        setState(() {
+          _phoneCode = code;
+          _phoneNumber = number;
+        });
+      },
     );
   }
 

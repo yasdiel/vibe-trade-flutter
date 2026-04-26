@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import '../../theme/app_theme.dart';
 
 class ImageAccount extends StatefulWidget {
-  const ImageAccount({super.key});
+  final String imageUrl;
+  final String fallbackName;
+
+  const ImageAccount({
+    super.key,
+    this.imageUrl = '',
+    this.fallbackName = '',
+  });
 
   @override
   State<ImageAccount> createState() => _ImageAccountState();
@@ -14,6 +22,8 @@ class _ImageAccountState extends State<ImageAccount> {
   File? _imagenSeleccionada;
   File? _imagenGuardada;
   final ImagePicker _picker = ImagePicker();
+  bool _saving = false;
+  String? _savedAvatarUrl;
 
   Future<void> _seleccionarImagen() async {
     final XFile? imagen = await _picker.pickImage(source: ImageSource.gallery);
@@ -24,15 +34,40 @@ class _ImageAccountState extends State<ImageAccount> {
     }
   }
 
-  void _guardarFoto() {
+  Future<void> _guardarFoto() async {
     if (_imagenSeleccionada != null) {
-      setState(() {
-        _imagenGuardada = _imagenSeleccionada;
-        _imagenSeleccionada = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto guardada correctamente')),
-      );
+      setState(() => _saving = true);
+      try {
+        final avatarUrl = await AuthService.uploadAvatar(_imagenSeleccionada!);
+        await AuthService.updateUserProfile(avatarUrl: avatarUrl);
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _imagenGuardada = null;
+          _imagenSeleccionada = null;
+          _savedAvatarUrl = avatarUrl;
+        });
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto guardada correctamente')),
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _saving = false);
+        }
+      }
     }
   }
 
@@ -45,6 +80,12 @@ class _ImageAccountState extends State<ImageAccount> {
   @override
   Widget build(BuildContext context) {
     final File? imagenActual = _imagenSeleccionada ?? _imagenGuardada;
+    final effectiveAvatar = (_savedAvatarUrl ?? widget.imageUrl).trim();
+    final imageUrl = AuthService.resolveMediaUrl(effectiveAvatar);
+    final fallbackLetter = widget.fallbackName.trim().isNotEmpty
+        ? widget.fallbackName.trim()[0].toUpperCase()
+        : 'U';
+
     return Column(
       children: [
         Center(
@@ -59,26 +100,18 @@ class _ImageAccountState extends State<ImageAccount> {
                       height: 100,
                       fit: BoxFit.cover,
                     )
-                  : Container(
+                  : imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
                       width: 100,
                       height: 100,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _buildFallbackAvatar(
+                        fallbackLetter,
                       ),
-                      child: const Center(
-                        child: Text(
-                          'U',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                    )
+                  : Container(
+                      child: _buildFallbackAvatar(fallbackLetter),
                     ),
             ),
           ),
@@ -119,11 +152,25 @@ class _ImageAccountState extends State<ImageAccount> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: _imagenSeleccionada != null
+              onPressed: _saving
+                  ? null
+                  : _imagenSeleccionada != null
                   ? _guardarFoto
                   : _seleccionarImagen,
-              icon: const Icon(Icons.save_outlined, size: 16),
-              label: const Text('Guardar foto'),
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined, size: 16),
+              label: Text(
+                _saving
+                    ? 'Guardando...'
+                    : _imagenSeleccionada != null
+                    ? 'Guardar foto'
+                    : 'Seleccionar foto',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: AppTheme.foregroundColor,
@@ -138,7 +185,8 @@ class _ImageAccountState extends State<ImageAccount> {
             ),
             const SizedBox(width: 12),
             TextButton(
-              onPressed: _imagenSeleccionada != null ? _descartarFoto : null,
+              onPressed:
+                  !_saving && _imagenSeleccionada != null ? _descartarFoto : null,
               child: Text(
                 'Descartar',
                 style: TextStyle(
@@ -151,6 +199,30 @@ class _ImageAccountState extends State<ImageAccount> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildFallbackAvatar(String letter) {
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          letter,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 40,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 }

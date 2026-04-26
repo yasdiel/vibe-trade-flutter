@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import '../../theme/app_theme.dart';
 
 class InstagramWidget extends StatefulWidget {
-  const InstagramWidget({super.key});
+  final String initialValue;
+
+  const InstagramWidget({super.key, this.initialValue = ''});
 
   @override
   State<InstagramWidget> createState() => _InstagramWidgetState();
 }
 
 class _InstagramWidgetState extends State<InstagramWidget> {
-  final TextEditingController _instagramController = TextEditingController();
+  late final TextEditingController _instagramController;
+  bool _saving = false;
 
-  void _guardarInstagram() {
+  @override
+  void initState() {
+    super.initState();
+    _instagramController = TextEditingController(text: widget.initialValue);
+  }
+
+  Future<void> _guardarInstagram() async {
     final instagram = _instagramController.text.trim();
 
     if (instagram.isEmpty) {
@@ -34,9 +44,33 @@ class _InstagramWidgetState extends State<InstagramWidget> {
     }
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Instagram guardado: $instagram')),
-    );
+    setState(() => _saving = true);
+    try {
+      await AuthService.updateUserProfile(instagram: instagram);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Instagram guardado: $instagram')),
+      );
+      Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   @override
@@ -97,7 +131,9 @@ class _InstagramWidgetState extends State<InstagramWidget> {
                 backgroundColor: AppTheme.foregroundColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
-              onPressed: () {
+              onPressed: _saving
+                  ? null
+                  : () {
                 Navigator.pop(context);
               },
 
@@ -118,11 +154,11 @@ class _InstagramWidgetState extends State<InstagramWidget> {
                 backgroundColor: AppTheme.primaryColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
-              onPressed: _guardarInstagram,
+              onPressed: _saving ? null : _guardarInstagram,
 
               child: Center(
                 child: Text(
-                  'Guardar',
+                  _saving ? 'Guardando...' : 'Guardar',
                   style: TextStyle(
                     color: AppTheme.foregroundColor,
                     fontSize: 13,

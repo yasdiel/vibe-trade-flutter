@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/services/auth_service.dart';
 import '../../theme/app_theme.dart';
 
 class UsernameAccount extends StatefulWidget {
-  const UsernameAccount({super.key});
+  final String initialValue;
+
+  const UsernameAccount({super.key, this.initialValue = ''});
 
   @override
   State<UsernameAccount> createState() => _UsernameAccountState();
 }
 
 class _UsernameAccountState extends State<UsernameAccount> {
-  final TextEditingController _nombreController = TextEditingController(
-    text: '',
-  );
+  late final TextEditingController _nombreController;
+  bool _saving = false;
 
-  void _guardarNombre() {
+  @override
+  void initState() {
+    super.initState();
+    _nombreController = TextEditingController(text: widget.initialValue);
+  }
+
+  Future<void> _guardarNombre() async {
     final nombre = _nombreController.text.trim();
 
     if (nombre.isEmpty) {
@@ -42,9 +50,41 @@ class _UsernameAccountState extends State<UsernameAccount> {
     }
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Nombre guardado: $nombre')),
-    );
+    setState(() => _saving = true);
+    try {
+      await AuthService.updateUserProfile(name: nombre);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Nombre guardado: $nombre')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant UsernameAccount oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue &&
+        _nombreController.text != widget.initialValue) {
+      _nombreController.text = widget.initialValue;
+    }
   }
 
   @override
@@ -96,9 +136,15 @@ class _UsernameAccountState extends State<UsernameAccount> {
             ),
             const SizedBox(width: 10),
             ElevatedButton.icon(
-              onPressed: _guardarNombre,
-              icon: const Icon(Icons.save_outlined, size: 16),
-              label: const Text('Guardar'),
+              onPressed: _saving ? null : _guardarNombre,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined, size: 16),
+              label: Text(_saving ? 'Guardando...' : 'Guardar'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: AppTheme.foregroundColor,

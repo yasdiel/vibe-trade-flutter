@@ -2,21 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class PhoneConfiguration extends StatefulWidget {
-  const PhoneConfiguration({super.key});
+  final String initialValue;
+
+  const PhoneConfiguration({super.key, this.initialValue = ''});
 
   @override
   State<PhoneConfiguration> createState() => _PhoneConfigurationState();
 }
 
 class _PhoneConfigurationState extends State<PhoneConfiguration> {
-  final TextEditingController _phoneController = TextEditingController(
-    text: '+5363287864',
-  );
+  late final TextEditingController _phoneController;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController = TextEditingController(text: widget.initialValue);
+  }
 
   @override
   void dispose() {
     _phoneController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant PhoneConfiguration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue &&
+        _phoneController.text != widget.initialValue) {
+      _phoneController.text = widget.initialValue;
+    }
   }
 
   @override

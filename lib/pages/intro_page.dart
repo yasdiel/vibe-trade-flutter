@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/intro_btn.dart';
 import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
 
@@ -39,6 +40,23 @@ class IntroPage extends StatelessWidget {
               onTap: () {
                 Navigator.pushReplacementNamed(context, '/signin');
               },
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+              icon: Icon(
+                Icons.arrow_forward_outlined,
+                color: AppTheme.primaryColor,
+              ),
+              label: Text(
+                'Continuar sin cuenta',
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
