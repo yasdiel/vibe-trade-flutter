@@ -170,7 +170,7 @@ class _SocialMediaConfigurationState extends State<SocialMediaConfiguration> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppTheme.errorColor,
         ),
       );
     }
@@ -209,7 +209,7 @@ class _SocialMediaConfigurationState extends State<SocialMediaConfiguration> {
                       await _deleteNetwork(type);
                     },
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.redAccent,
+                      foregroundColor: AppTheme.errorColor,
                     ),
                     child: const Text('Eliminar'),
                   ),
@@ -223,10 +223,10 @@ class _SocialMediaConfigurationState extends State<SocialMediaConfiguration> {
                       Navigator.pop(context);
                       onEdit();
                     },
-                    child: Text(
+                    child: const Text(
                       'Editar',
                       style: TextStyle(
-                        color: AppTheme.foregroundColor,
+                        color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -246,15 +246,19 @@ class _SocialMediaConfigurationState extends State<SocialMediaConfiguration> {
     return Column(
       children: [
         Row(
-          children: const [
-            Icon(Icons.person_outline, size: 16, color: Colors.black54),
-            SizedBox(width: 6),
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 16,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(width: 6),
             Text(
               'Multi-cuenta',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
@@ -346,19 +350,19 @@ class _SocialMediaConfigurationState extends State<SocialMediaConfiguration> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F7F7),
+              color: AppTheme.subtleSurfaceColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black12),
+              border: Border.all(color: AppTheme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Redes guardadas',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),

@@ -21,14 +21,17 @@ class TrustAppBarActions extends StatelessWidget {
         return Row(
           children: [
             if (isLoggedIn)
-              Expanded(child: TrustBar(score: user?.trustScore))
+              Expanded(child: _UserGreeting(user: user))
             else
               const Expanded(child: _GuestBadge()),
             const SizedBox(width: 8),
             IconButton(
               tooltip: 'Notificaciones',
               onPressed: onNotificationsTap,
-              icon: const Icon(Icons.notifications_none_outlined),
+              icon: Icon(
+                Icons.notifications_none_outlined,
+                color: AppTheme.textPrimary,
+              ),
             ),
           ],
         );
@@ -37,64 +40,96 @@ class TrustAppBarActions extends StatelessWidget {
   }
 }
 
-class TrustBar extends StatelessWidget {
-  final int? score;
+class _UserGreeting extends StatelessWidget {
+  final UserProfileModel? user;
 
-  const TrustBar({super.key, required this.score});
+  const _UserGreeting({this.user});
 
   @override
   Widget build(BuildContext context) {
-    final safeScore = score?.clamp(0, 100);
-    final progressColor = _progressColor(safeScore);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.foregroundColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final name = (user?.name ?? '').trim();
+    final firstName = name.isEmpty ? 'Usuario' : name.split(' ').first;
+    final initial = firstName[0].toUpperCase();
+    final imageUrl = user?.imageUrl ?? '';
+
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: imageUrl.isNotEmpty
+              ? Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _AvatarFallback(initial: initial),
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return _AvatarFallback(initial: initial);
+                  },
+                )
+              : _AvatarFallback(initial: initial),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Expanded(
-                child: Text(
-                  'Confianza',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                ),
-              ),
               Text(
-                safeScore == null ? 'Sin dato' : '$safeScore%',
+                'Hola,',
                 style: TextStyle(
                   fontSize: 11,
+                  color: AppTheme.textMuted,
+                  fontWeight: FontWeight.w600,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                firstName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: progressColor,
+                  color: AppTheme.textPrimary,
+                  height: 1.1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 5),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              minHeight: 6,
-              value: safeScore == null ? 0 : safeScore / 100,
-              backgroundColor: Colors.black12,
-              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
 
-  Color _progressColor(int? value) {
-    if (value == null) return Colors.black38;
-    if (value < 30) return Colors.redAccent;
-    if (value <= 60) return Colors.amber.shade700;
-    return Colors.green;
+class _AvatarFallback extends StatelessWidget {
+  final String initial;
+
+  const _AvatarFallback({required this.initial});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
   }
 }
 
@@ -106,15 +141,27 @@ class _GuestBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: AppTheme.warningSurface,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Text(
-        'Modo visitante',
-        style: TextStyle(
-          color: Colors.orange.shade800,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.person_outline, size: 16, color: AppTheme.warningColor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              'Modo visitante',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppTheme.warningColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

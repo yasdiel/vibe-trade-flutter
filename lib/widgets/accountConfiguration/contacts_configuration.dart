@@ -28,14 +28,14 @@ class _ContactsConfigurationState extends State<ContactsConfiguration> {
               Text(
                 'Contactos',
                 style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight(700),
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
                   fontSize: 20,
                 ),
               ),
               Text(
                 'Solo puedes guardar numeros que esten registrados en VibeTrade',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
               ),
               SizedBox(height: 15),
               AgendPhoneConfiguration(),
@@ -53,25 +53,25 @@ class _ContactsConfigurationState extends State<ContactsConfiguration> {
       children: [
         Row(
           children: [
-            Icon(Icons.contacts, size: 16, color: Colors.black54),
-            SizedBox(width: 6),
+            Icon(Icons.contacts, size: 16, color: AppTheme.textSecondary),
+            const SizedBox(width: 6),
             Text(
               'Agenda en la plataforma',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
         ),
-        SizedBox(height: 5),
+        const SizedBox(height: 5),
         Text(
           'Guarda el numero de otros usuarios registrados para verlos con nombre y telefono del perfil',
           style: TextStyle(
             fontSize: 10,
-            fontWeight: FontWeight(500),
-            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textMuted,
           ),
         ),
         const SizedBox(height: 10),
@@ -81,7 +81,7 @@ class _ContactsConfigurationState extends State<ContactsConfiguration> {
             borderRadius: BorderRadius.circular(10),
             onTap: _showContactsDialog,
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor,
                 borderRadius: BorderRadius.circular(10),
@@ -94,14 +94,14 @@ class _ContactsConfigurationState extends State<ContactsConfiguration> {
                   Icon(
                     Icons.contacts,
                     size: 16,
-                    color: AppTheme.foregroundColor,
+                    color: Colors.white,
                   ),
-                  SizedBox(width: 10),
-                  Text(
+                  const SizedBox(width: 10),
+                  const Text(
                     'Contactos',
                     style: TextStyle(
-                      color: AppTheme.foregroundColor,
-                      fontWeight: FontWeight(700),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

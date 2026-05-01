@@ -63,7 +63,7 @@ class _XWidgetState extends State<XWidget> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppTheme.errorColor,
         ),
       );
     } finally {
@@ -90,24 +90,24 @@ class _XWidgetState extends State<XWidget> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
-
-        // Campo Email + Boton Guardar
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _xController,
+                style: TextStyle(color: AppTheme.textPrimary),
                 decoration: InputDecoration(
                   hintText: '@user o https://...',
+                  hintStyle: TextStyle(color: AppTheme.hintColor),
                   isDense: true,
                   filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
+                  fillColor: AppTheme.inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -121,7 +121,7 @@ class _XWidgetState extends State<XWidget> {
             ),
           ],
         ),
-        SizedBox(height: 30),
+        const SizedBox(height: 30),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -131,38 +131,32 @@ class _XWidgetState extends State<XWidget> {
                 backgroundColor: AppTheme.foregroundColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
-              onPressed: _saving
-                  ? null
-                  : () {
-                Navigator.pop(context);
-              },
-
+              onPressed: _saving ? null : () => Navigator.pop(context),
               child: Center(
                 child: Text(
                   'Cerrar',
                   style: TextStyle(
                     color: AppTheme.primaryColor,
                     fontSize: 13,
-                    fontWeight: FontWeight(700),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ),
-            SizedBox(width: 5),
+            const SizedBox(width: 5),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 side: BorderSide(color: AppTheme.primaryColor, width: 1),
               ),
               onPressed: _saving ? null : _guardarX,
-
               child: Center(
                 child: Text(
                   _saving ? 'Guardando...' : 'Guardar',
-                  style: TextStyle(
-                    color: AppTheme.foregroundColor,
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 13,
-                    fontWeight: FontWeight(700),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

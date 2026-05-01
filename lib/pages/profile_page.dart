@@ -24,6 +24,25 @@ class _ProfilePageState extends State<ProfilePage> {
     StoresScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    AppTheme.modeNotifier.addListener(_handleThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    AppTheme.modeNotifier.removeListener(_handleThemeChanged);
+    super.dispose();
+  }
+
+  void _handleThemeChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
   Widget _buildDesktopTabs() {
     return Row(
       children: List.generate(_tabs.length, (index) {
@@ -134,21 +153,21 @@ class _ProfilePageState extends State<ProfilePage> {
                 IconButton(
                   onPressed: () =>
                       Navigator.pushReplacementNamed(context, '/home'),
-                  icon: const Icon(Icons.arrow_back),
+                  icon: Icon(Icons.arrow_back, color: AppTheme.textPrimary),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.grey.shade300,
+                    backgroundColor: AppTheme.surfaceMutedColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'Perfil',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
               ],

@@ -39,15 +39,15 @@ class _PhoneConfigurationState extends State<PhoneConfiguration> {
     return Column(
       children: [
         Row(
-          children: const [
-            Icon(Icons.phone, size: 16, color: Colors.black54),
-            SizedBox(width: 6),
+          children: [
+            Icon(Icons.phone, size: 16, color: AppTheme.textSecondary),
+            const SizedBox(width: 6),
             Text(
               'Phone',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
@@ -56,9 +56,10 @@ class _PhoneConfigurationState extends State<PhoneConfiguration> {
         TextField(
           controller: _phoneController,
           readOnly: true,
+          style: TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             filled: true,
-            fillColor: const Color(0xFFF5F5F5),
+            fillColor: AppTheme.inputFillColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

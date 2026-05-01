@@ -76,7 +76,7 @@ class _CategoryError extends StatelessWidget {
         Expanded(
           child: Text(
             error,
-            style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            style: TextStyle(color: AppTheme.errorColor, fontSize: 12),
           ),
         ),
         TextButton(onPressed: onRetry, child: const Text('Reintentar')),
@@ -101,16 +101,18 @@ class _CategoryDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
+        color: AppTheme.inputFillColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           key: ValueKey<int>(selectedCount),
           value: null,
-          hint: Text(_hintText, style: const TextStyle(color: Colors.black54)),
+          dropdownColor: AppTheme.foregroundColor,
+          style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+          hint: Text(_hintText, style: TextStyle(color: AppTheme.hintColor)),
           isExpanded: true,
-          icon: const Icon(Icons.arrow_drop_down),
+          icon: Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
           items: _items,
           onChanged: remainingCategories.isEmpty ? null : onChanged,
         ),
@@ -126,7 +128,13 @@ class _CategoryDropdown extends StatelessWidget {
 
   List<DropdownMenuItem<String>> get _items {
     return remainingCategories
-        .map((cat) => DropdownMenuItem<String>(value: cat, child: Text(cat)))
+        .map((cat) => DropdownMenuItem<String>(
+              value: cat,
+              child: Text(
+                cat,
+                style: TextStyle(color: AppTheme.textPrimary),
+              ),
+            ))
         .toList();
   }
 }
@@ -164,10 +172,13 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Chip(
-      label: Text(category),
+      label: Text(
+        category,
+        style: TextStyle(color: AppTheme.primaryColor),
+      ),
       backgroundColor: AppTheme.selectedColor,
       side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
-      deleteIcon: const Icon(Icons.close, size: 16),
+      deleteIcon: Icon(Icons.close, size: 16, color: AppTheme.primaryColor),
       onDeleted: () => onDeleted(category),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class ModalTitle extends StatelessWidget {
   final String text;
@@ -9,8 +10,8 @@ class ModalTitle extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        color: Colors.black,
-        fontWeight: FontWeight(700),
+        color: AppTheme.textPrimary,
+        fontWeight: FontWeight.w700,
         fontSize: 20,
       ),
     );

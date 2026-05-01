@@ -68,7 +68,7 @@ class _UsernameAccountState extends State<UsernameAccount> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppTheme.errorColor,
         ),
       );
     } finally {
@@ -98,15 +98,19 @@ class _UsernameAccountState extends State<UsernameAccount> {
     return Column(
       children: [
         Row(
-          children: const [
-            Icon(Icons.person_outline, size: 16, color: Colors.black54),
-            SizedBox(width: 6),
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 16,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(width: 6),
             Text(
               'Nombre',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
@@ -119,10 +123,12 @@ class _UsernameAccountState extends State<UsernameAccount> {
             Expanded(
               child: TextField(
                 controller: _nombreController,
+                style: TextStyle(color: AppTheme.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Jhon Doe',
+                  hintStyle: TextStyle(color: AppTheme.hintColor),
                   filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
+                  fillColor: AppTheme.inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,

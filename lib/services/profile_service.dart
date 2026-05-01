@@ -9,6 +9,26 @@ import 'package:vibe_trade_v1/services/session_service.dart';
 class ProfileService {
   static String get _profileUrl => '$baseUrl/Auth/profile';
 
+  static Future<UserProfileModel?> fetchCurrentUser() async {
+    final token = await SessionService.getSavedToken();
+    if (token == null) return null;
+
+    final response = await http.get(
+      Uri.parse(_profileUrl),
+      headers: {'Authorization': SessionService.buildAuthorizationHeader(token)},
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      return null;
+    }
+
+    final user = _extractUser(response.body);
+    if (user == null || user.isEmpty) return null;
+
+    await SessionService.saveUser(user);
+    return user;
+  }
+
   static Future<UserProfileModel> updateUserProfile({
     String? name,
     String? email,
@@ -67,6 +87,17 @@ class ProfileService {
       },
       body: jsonEncode(body),
     );
+  }
+
+  static UserProfileModel? _extractUser(String responseBody) {
+    final rawBody = responseBody.trim();
+    if (rawBody.isEmpty) return null;
+
+    try {
+      return ApiResponseUtils.extractUser(jsonDecode(rawBody));
+    } catch (_) {
+      return null;
+    }
   }
 
   static Map<String, dynamic> _buildBody(

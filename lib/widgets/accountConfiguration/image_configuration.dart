@@ -60,7 +60,7 @@ class _ImageAccountState extends State<ImageAccount> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error.toString().replaceFirst('Exception: ', '')),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppTheme.errorColor,
           ),
         );
       } finally {
@@ -121,15 +121,19 @@ class _ImageAccountState extends State<ImageAccount> {
         Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.image_outlined, size: 16, color: Colors.black54),
-              SizedBox(width: 4),
+            children: [
+              Icon(
+                Icons.image_outlined,
+                size: 16,
+                color: AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 4),
               Text(
                 'Foto de perfil',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppTheme.textPrimary,
                 ),
               ),
             ],
@@ -138,11 +142,11 @@ class _ImageAccountState extends State<ImageAccount> {
         const SizedBox(height: 6),
 
         // Descripción
-        const Center(
+        Center(
           child: Text(
             'Elegí una imagen desde tu dispositivo y guardala con el botón (vista previa local con URL blob).',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: Colors.black45),
+            style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
           ),
         ),
         const SizedBox(height: 16),
@@ -191,8 +195,8 @@ class _ImageAccountState extends State<ImageAccount> {
                 'Descartar',
                 style: TextStyle(
                   color: _imagenSeleccionada != null
-                      ? Colors.black54
-                      : Colors.black26,
+                      ? AppTheme.textSecondary
+                      : AppTheme.textMuted.withValues(alpha: 0.6),
                 ),
               ),
             ),

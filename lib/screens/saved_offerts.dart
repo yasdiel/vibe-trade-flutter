@@ -16,11 +16,13 @@ class _SavedOffertsState extends State<SavedOfferts> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.foregroundColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withValues(
+                alpha: AppTheme.isDark ? 0.4 : 0.06,
+              ),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -32,17 +34,17 @@ class _SavedOffertsState extends State<SavedOfferts> {
             Container(
               padding: const EdgeInsets.only(bottom: 5),
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: Colors.grey, width: 1.0),
+                  bottom: BorderSide(color: AppTheme.dividerColor, width: 1.0),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Ofertas guardadas',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+                  color: AppTheme.textPrimary,
                 ),
               ),
             ),
@@ -73,13 +75,13 @@ class _SavedOffertsState extends State<SavedOfferts> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'No tienes ofertas guardadas',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -88,7 +90,7 @@ class _SavedOffertsState extends State<SavedOfferts> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey.shade700,
+                      color: AppTheme.textSecondary,
                       height: 1.4,
                     ),
                   ),
@@ -107,7 +109,7 @@ class _SavedOffertsState extends State<SavedOfferts> {
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: AppTheme.foregroundColor,
+                  foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(

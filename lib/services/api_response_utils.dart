@@ -54,8 +54,18 @@ class ApiResponseUtils {
     if (directUser != null) return directUser;
 
     final data = value['data'];
-    if (data is Map) return _userFromMap(data['user']);
-    return null;
+    if (data is Map) {
+      final dataUser = _userFromMap(data['user']);
+      if (dataUser != null) return dataUser;
+
+      final directData = _userFromMap(data);
+      if (directData != null) return directData;
+    }
+
+    final directResponse = _userFromMap(value);
+    if (directResponse != null) return directResponse;
+
+    return _firstFromIterable(value.values, extractUser);
   }
 
   static UserProfileModel extractUserFromProfileResponse(

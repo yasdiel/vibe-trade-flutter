@@ -7,7 +7,9 @@ import 'package:vibe_trade_v1/widgets/accountConfiguration/email_configuration.d
 import 'package:vibe_trade_v1/widgets/accountConfiguration/image_configuration.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/phone_configuration.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/social_media_configuration.dart';
+import 'package:vibe_trade_v1/widgets/accountConfiguration/theme_switcher.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/username_configuration.dart';
+import 'package:vibe_trade_v1/widgets/trust_bar.dart';
 
 class ConfiguracionUsuario extends StatefulWidget {
   final UserProfileModel? user;
@@ -20,6 +22,25 @@ class ConfiguracionUsuario extends StatefulWidget {
 
 class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
   bool _loggingOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AppTheme.modeNotifier.addListener(_handleThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    AppTheme.modeNotifier.removeListener(_handleThemeChanged);
+    super.dispose();
+  }
+
+  void _handleThemeChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
 
   void _showPaymentGatewaysDialog() {
     showDialog(
@@ -43,21 +64,25 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Pasarelas de pago',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+                  color: AppTheme.textPrimary,
                 ),
               ),
             ),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Aqui podras conectar y administrar tus metodos de cobro cuando esta configuracion este disponible.',
-          style: TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+          style: TextStyle(
+            fontSize: 13,
+            color: AppTheme.textSecondary,
+            height: 1.4,
+          ),
         ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
@@ -136,7 +161,7 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppTheme.errorColor,
         ),
       );
     } finally {
@@ -153,11 +178,13 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.foregroundColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withValues(
+                alpha: AppTheme.isDark ? 0.4 : 0.06,
+              ),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -168,19 +195,19 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
           children: [
             // Título
             Container(
-              padding: EdgeInsets.only(bottom: 5),
+              padding: const EdgeInsets.only(bottom: 5),
               width: double.infinity,
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: Colors.grey, width: 1.0),
+                  bottom: BorderSide(color: AppTheme.dividerColor, width: 1.0),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Configuración del usuario',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+                  color: AppTheme.textPrimary,
                 ),
               ),
             ),
@@ -191,6 +218,10 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
               imageUrl: widget.user?.imageUrl ?? '',
               fallbackName: widget.user?.name ?? '',
             ),
+            const SizedBox(height: 20),
+
+            // Confianza
+            _TrustSection(score: widget.user?.trustScore),
             const SizedBox(height: 20),
 
             // Nombre de usuario
@@ -217,6 +248,10 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
             ),
             SizedBox(height: 20),
 
+            // Apariencia (light/dark)
+            const ThemeSwitcher(),
+            const SizedBox(height: 20),
+
             // Pasarelas de pago
             _buildActionButton(
               label: 'Configurar pasarelas de pago',
@@ -239,6 +274,109 @@ class _ConfiguracionUsuarioState extends State<ConfiguracionUsuario> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TrustSection extends StatelessWidget {
+  final int? score;
+
+  const _TrustSection({required this.score});
+
+  String _label(int? value) {
+    if (value == null) return 'Sin datos';
+    if (value < 30) return 'Necesita mejorar';
+    if (value <= 60) return 'En construccion';
+    if (value <= 85) return 'Buena';
+    return 'Excelente';
+  }
+
+  String _description(int? value) {
+    if (value == null) {
+      return 'Aun no tenemos suficientes datos para calcular tu nivel de confianza. Completa tu perfil y empieza a operar para construirla.';
+    }
+    if (value < 30) {
+      return 'Tu confianza es baja. Verifica tu perfil, completa tus datos y mantén buenas operaciones para subirla.';
+    }
+    if (value <= 60) {
+      return 'Tu confianza esta en proceso de crecer. Sigue verificando datos y completando tus operaciones.';
+    }
+    if (value <= 85) {
+      return 'Tu reputacion es solida. Mantente activo y cumple con tus tratos para seguir subiendo.';
+    }
+    return 'Tienes un nivel de confianza excelente. Los demas usuarios te ven como alguien confiable para operar.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.selectedColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppTheme.primaryColor.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.foregroundColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.verified_user_outlined,
+                  size: 18,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Tu confianza',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primaryColor,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _label(score),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TrustBar(score: score),
+          const SizedBox(height: 10),
+          Text(
+            _description(score),
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }

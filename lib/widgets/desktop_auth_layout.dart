@@ -40,7 +40,9 @@ class DesktopAuthLayout extends StatelessWidget {
                   borderRadius: BorderRadius.circular(36),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
+                      color: Colors.black.withValues(
+                        alpha: AppTheme.isDark ? 0.4 : 0.08,
+                      ),
                       blurRadius: 28,
                       offset: const Offset(0, 18),
                     ),
@@ -93,7 +95,7 @@ class DesktopAuthLayout extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 16,
                                 height: 1.6,
-                                color: Colors.grey.shade800,
+                                color: AppTheme.textSecondary,
                               ),
                             ),
                           ],

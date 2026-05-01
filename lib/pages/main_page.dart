@@ -39,6 +39,7 @@ class _MainPageState extends State<MainPage> {
   void initState() {
     super.initState();
     AuthService.isLoggedInNotifier.addListener(_handleSessionChanged);
+    AppTheme.modeNotifier.addListener(_handleThemeChanged);
     _hydrateSession();
   }
 
@@ -64,9 +65,17 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
+  void _handleThemeChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
   @override
   void dispose() {
     AuthService.isLoggedInNotifier.removeListener(_handleSessionChanged);
+    AppTheme.modeNotifier.removeListener(_handleThemeChanged);
     super.dispose();
   }
 
@@ -155,7 +164,9 @@ class _MainPageState extends State<MainPage> {
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: AppTheme.isDark
+                        ? Colors.black.withValues(alpha: 0.4)
+                        : Colors.black.withValues(alpha: 0.05),
                     blurRadius: 18,
                     offset: const Offset(0, 10),
                   ),
@@ -179,13 +190,13 @@ class _MainPageState extends State<MainPage> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'VibeTrade',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black87,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
                       ),
@@ -198,7 +209,7 @@ class _MainPageState extends State<MainPage> {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1,
-                      color: Colors.grey.shade600,
+                      color: AppTheme.textMuted,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -240,7 +251,7 @@ class _MainPageState extends State<MainPage> {
                                     item.icon,
                                     color: isSelected
                                         ? AppTheme.primaryColor
-                                        : Colors.grey.shade700,
+                                        : AppTheme.textSecondary,
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
@@ -250,7 +261,7 @@ class _MainPageState extends State<MainPage> {
                                       fontWeight: FontWeight.w700,
                                       color: isSelected
                                           ? AppTheme.primaryColor
-                                          : Colors.black87,
+                                          : AppTheme.textPrimary,
                                     ),
                                   ),
                                 ],
@@ -305,15 +316,6 @@ class _MainPageState extends State<MainPage> {
                       ),
                       child: Row(
                         children: [
-                          Text(
-                            _navigationItems[_selectedIndex].label,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(width: 18),
                           Expanded(
                             child: TrustAppBarActions(
                               isLoggedIn: _isLoged,
@@ -348,7 +350,9 @@ class _MainPageState extends State<MainPage> {
       backgroundColor: AppTheme.appBgColor,
       appBar: AppBar(
         backgroundColor: AppTheme.appBgColor,
-        shape: const Border(bottom: BorderSide(color: Colors.grey, width: 1)),
+        shape: Border(
+          bottom: BorderSide(color: AppTheme.dividerColor, width: 1),
+        ),
         automaticallyImplyLeading: false,
         titleSpacing: 12,
         title: _isLoged
@@ -386,13 +390,13 @@ class _MainPageState extends State<MainPage> {
       ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey, width: 1)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.dividerColor, width: 1)),
         ),
         child: BottomNavigationBar(
           backgroundColor: AppTheme.appBgColor,
           selectedItemColor: AppTheme.primaryColor,
-          unselectedItemColor: Colors.grey,
+          unselectedItemColor: AppTheme.textSecondary,
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),

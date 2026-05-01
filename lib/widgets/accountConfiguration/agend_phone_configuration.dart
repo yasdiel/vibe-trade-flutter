@@ -48,15 +48,15 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
     return Column(
       children: [
         Row(
-          children: const [
-            Icon(Icons.phone, size: 16, color: Colors.black54),
-            SizedBox(width: 6),
+          children: [
+            Icon(Icons.phone, size: 16, color: AppTheme.textSecondary),
+            const SizedBox(width: 6),
             Text(
               'Numero de telefono',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
@@ -69,13 +69,14 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
             Expanded(
               child: TextField(
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
                 controller: _phoneController,
                 decoration: InputDecoration(
                   isDense: true,
                   hintText: 'Ej. +53 34567434',
+                  hintStyle: TextStyle(color: AppTheme.hintColor),
                   filled: true,
-                  fillColor: const Color(0xFFF5F5F5),
+                  fillColor: AppTheme.inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -106,11 +107,16 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
             ),
           ],
         ),
-        SizedBox(height: 15),
-        Divider(height: 1, color: Colors.grey),
+        const SizedBox(height: 15),
+        Divider(height: 1, color: AppTheme.dividerColor),
         SizedBox(
           height: 200,
-          child: Center(child: Text('No tienes contactos registrados')),
+          child: Center(
+            child: Text(
+              'No tienes contactos registrados',
+              style: TextStyle(color: AppTheme.textMuted),
+            ),
+          ),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -124,14 +130,13 @@ class _AgendPhoneConfigurationState extends State<AgendPhoneConfiguration> {
               onPressed: () {
                 Navigator.pop(context);
               },
-
               child: Center(
                 child: Text(
                   'Cerrar',
                   style: TextStyle(
                     color: AppTheme.primaryColor,
                     fontSize: 15,
-                    fontWeight: FontWeight(700),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

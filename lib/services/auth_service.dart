@@ -69,14 +69,19 @@ class AuthService {
       throw Exception('Failed to verify code: ${response.statusCode}');
     }
     await SessionService.persistVerifyResponse(response.body);
+    await ProfileService.fetchCurrentUser();
   }
 
   static Future<String?> getSavedToken() {
     return SessionService.getSavedToken();
   }
 
-  static Future<bool> hydrateSession() {
-    return SessionService.hydrateSession();
+  static Future<bool> hydrateSession() async {
+    final isLoggedIn = await SessionService.hydrateSession();
+    if (isLoggedIn) {
+      await ProfileService.fetchCurrentUser();
+    }
+    return isLoggedIn;
   }
 
   static Future<UserProfileModel?> getSavedUser() {

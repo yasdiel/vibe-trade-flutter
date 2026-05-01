@@ -63,8 +63,9 @@ class AuthShell extends StatelessWidget {
                                     width: 74,
                                     height: 74,
                                     decoration: BoxDecoration(
-                                      color: AppTheme.foregroundColor
-                                          .withValues(alpha: 0.16),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.16,
+                                      ),
                                       borderRadius: BorderRadius.circular(22),
                                     ),
                                     child: const Icon(
@@ -76,11 +77,11 @@ class AuthShell extends StatelessWidget {
                                   const SizedBox(height: 28),
                                   Text(
                                     title,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 34,
                                       height: 1.1,
                                       fontWeight: FontWeight.w800,
-                                      color: AppTheme.foregroundColor,
+                                      color: Colors.white,
                                     ),
                                   ),
                                   const SizedBox(height: 14),
@@ -89,8 +90,9 @@ class AuthShell extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 16,
                                       height: 1.5,
-                                      color: AppTheme.foregroundColor
-                                          .withValues(alpha: 0.9),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -109,7 +111,9 @@ class AuthShell extends StatelessWidget {
                             borderRadius: BorderRadius.circular(32),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
+                                color: Colors.black.withValues(
+                                  alpha: AppTheme.isDark ? 0.4 : 0.08,
+                                ),
                                 blurRadius: 26,
                                 offset: const Offset(0, 18),
                               ),
