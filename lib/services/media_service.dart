@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:vibe_trade_v1/config/env.dart';
 import 'package:vibe_trade_v1/services/api_response_utils.dart';
+import 'package:vibe_trade_v1/services/auth_exceptions.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
 
 class MediaService {
@@ -25,10 +26,55 @@ class MediaService {
 
   static Future<String> uploadAvatar(File file) async {
     final token = await SessionService.getSavedToken();
-    if (token == null) throw Exception('No hay una sesion activa.');
+    if (token == null) throw const UnauthorizedException();
     await _validateImageFile(file);
 
     final response = await _postImage(file, token);
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await SessionService.handleUnauthorized();
+      throw const UnauthorizedException();
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        ApiResponseUtils.extractErrorMessage(
+          response,
+          fallback: 'No se pudo subir la imagen (status ${response.statusCode}).',
+        ),
+      );
+    }
+
+    final mediaId = _extractMediaId(response.body);
+    if (mediaId == null || mediaId.isEmpty) {
+      throw Exception('No se pudo obtener el id de la imagen.');
+    }
+    return '/api/v1/media/$mediaId';
+  }
+
+  /// Sube bytes de imagen al mismo endpoint que [uploadAvatar].
+  static Future<String> uploadImageBytes({
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    if (bytes.isEmpty) {
+      throw Exception('La imagen esta vacia.');
+    }
+    final token = await SessionService.getSavedToken();
+    if (token == null) throw const UnauthorizedException();
+
+    final request = http.MultipartRequest('POST', Uri.parse(_mediaBaseUrl));
+    request.headers['Authorization'] = SessionService.buildAuthorizationHeader(token);
+    request.headers['Accept'] = 'application/json';
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await SessionService.handleUnauthorized();
+      throw const UnauthorizedException();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         ApiResponseUtils.extractErrorMessage(

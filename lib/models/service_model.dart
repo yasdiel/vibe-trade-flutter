@@ -32,6 +32,9 @@ class ServiceModel {
 
   final DateTime createdAt;
 
+  /// `false`: borrador (`published` en API explícito). Si el backend omite la clave, se asume público legacy.
+  final bool published;
+
   const ServiceModel({
     required this.id,
     required this.storeId,
@@ -51,6 +54,7 @@ class ServiceModel {
     required this.intellectualProperty,
     required this.imagePaths,
     required this.createdAt,
+    this.published = true,
   });
 
   ServiceModel copyWith({
@@ -70,6 +74,7 @@ class ServiceModel {
     String? intellectualProperty,
     List<String>? imagePaths,
     DateTime? createdAt,
+    bool? published,
   }) {
     return ServiceModel(
       id: id,
@@ -90,6 +95,7 @@ class ServiceModel {
       intellectualProperty: intellectualProperty ?? this.intellectualProperty,
       imagePaths: imagePaths ?? this.imagePaths,
       createdAt: createdAt ?? this.createdAt,
+      published: published ?? this.published,
     );
   }
 
@@ -114,6 +120,7 @@ class ServiceModel {
       'intellectualProperty': intellectualProperty,
       'imagePaths': imagePaths,
       'createdAt': createdAt.toIso8601String(),
+      'published': published,
     };
   }
 
@@ -146,6 +153,7 @@ class ServiceModel {
       createdAt:
           DateTime.tryParse((json['createdAt'] as String?) ?? '') ??
           DateTime.now(),
+      published: json['published'] as bool? ?? true,
     );
   }
 }

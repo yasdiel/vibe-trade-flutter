@@ -88,6 +88,7 @@ class UserProfileModel {
       xHandle: _pickString(json, const [
         'x',
         'xHandle',
+        'xAccount',
         'twitter',
         'twitterHandle',
         'twitterUsername',

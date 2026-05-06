@@ -86,6 +86,66 @@ class StoreModel {
     };
   }
 
+  /// Payload del Market workspace (`pitch`, `transportIncluded`, `websiteUrl`,
+  /// `avatarUrl`, `location`, etc.).
+  factory StoreModel.fromWorkspaceApi(Map<String, dynamic> json) {
+    String workspaceStr(dynamic value) {
+      if (value == null) return '';
+      if (value is String) return value.trim();
+      return value.toString().trim();
+    }
+
+    double? lat, lng;
+    final loc = json['location'];
+    if (loc is Map) {
+      final lm = Map<String, dynamic>.from(loc);
+      lat = (lm['lat'] as num?)?.toDouble();
+      lng = (lm['lng'] as num?)?.toDouble();
+    }
+
+    final pitch = workspaceStr(json['pitch']);
+    final fallbackDesc = workspaceStr(json['description']);
+
+    var websiteRaw = workspaceStr(json['websiteUrl']);
+    if (websiteRaw.isEmpty) {
+      websiteRaw = workspaceStr(json['website']);
+    }
+
+    final categoriesRaw = json['categories'];
+    final cats = categoriesRaw is List
+        ? categoriesRaw
+              .where((e) => e != null && e.toString().trim().isNotEmpty)
+              .map((e) => e.toString().trim())
+              .toList(growable: false)
+        : const <String>[];
+
+    final avatar = workspaceStr(json['avatarUrl'] ?? json['imagePath']);
+
+    return StoreModel(
+      id: workspaceStr(json['id']),
+      name: workspaceStr(json['name']),
+      description: pitch.isNotEmpty ? pitch : fallbackDesc,
+      categories: List<String>.unmodifiable(cats),
+      hasOwnTransport: (json['transportIncluded'] as bool?) ??
+          (json['hasOwnTransport'] as bool?) ??
+          false,
+      website: websiteRaw,
+      latitude: lat,
+      longitude: lng,
+      imagePath: avatar,
+      createdAt:
+          DateTime.tryParse((json['createdAt'] as String?) ?? '') ??
+          DateTime.now(),
+      isVerified: (json['verified'] as bool?) ??
+          (json['isVerified'] as bool?) ??
+          false,
+      trustScore:
+          ((json['trustScore'] as num?)?.toInt() ?? 0).clamp(0, 100),
+      productsCount: (json['productsCount'] as num?)?.toInt() ?? 0,
+      servicesCount: (json['servicesCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   factory StoreModel.fromJson(Map<String, dynamic> json) {
     return StoreModel(
       id: (json['id'] as String?) ?? '',

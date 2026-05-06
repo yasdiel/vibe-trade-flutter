@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/models/user_profile_model.dart';
 import 'package:vibe_trade_v1/services/auth_service.dart';
 import 'package:vibe_trade_v1/widgets/accountConfiguration/account_configuration.dart';
 
@@ -7,7 +8,7 @@ class AccountScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
+    return ValueListenableBuilder<UserProfileModel?>(
       valueListenable: AuthService.currentUserNotifier,
       builder: (context, user, _) {
         return ConfiguracionUsuario(user: user);

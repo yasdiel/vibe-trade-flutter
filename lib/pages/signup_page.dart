@@ -3,6 +3,7 @@ import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/desktop_auth_layout.dart';
 import 'package:vibe_trade_v1/widgets/phone_input.dart';
 import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
+import 'package:vibe_trade_v1/utils/phone_e164.dart';
 import '../models/country_model.dart';
 import '../services/auth_service.dart';
 import '../services/country_services.dart';
@@ -81,7 +82,9 @@ class _SignUpState extends State<SignUp> {
     });
 
     try {
-      await AuthService.requestRegisterCode(phone: _phoneNumber);
+      await AuthService.requestRegisterCode(
+        phone: buildE164Phone(_phoneCode, _phoneNumber),
+      );
     } catch (_) {
       if (!mounted) {
         return;

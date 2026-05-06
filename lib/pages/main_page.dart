@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/pages/catalog_search_page.dart';
 import 'package:vibe_trade_v1/pages/chat_page.dart';
 import 'package:vibe_trade_v1/pages/home_page.dart';
 import 'package:vibe_trade_v1/pages/profile_page.dart';
 import 'package:vibe_trade_v1/pages/reels_page.dart';
 import 'package:vibe_trade_v1/services/auth_service.dart';
+import 'package:vibe_trade_v1/services/main_tab_bus.dart';
+import 'package:vibe_trade_v1/services/saved_offers_service.dart';
+import 'package:vibe_trade_v1/services/store_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/app_bar/home_offers_app_bar.dart';
 import 'package:vibe_trade_v1/widgets/app_bar/trust_app_bar_actions.dart';
 import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
 import 'package:vibe_trade_v1/widgets/warning_modal_btn.dart';
@@ -38,9 +45,16 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    MainTabBus.selectTab = _selectTabSafely;
     AuthService.isLoggedInNotifier.addListener(_handleSessionChanged);
     AppTheme.modeNotifier.addListener(_handleThemeChanged);
     _hydrateSession();
+  }
+
+  void _selectTabSafely(int index) {
+    if (!mounted) return;
+    if (!_isLoged || index < 0 || index >= _pages.length) return;
+    setState(() => _selectedIndex = index);
   }
 
   Future<void> _hydrateSession() async {
@@ -53,6 +67,12 @@ class _MainPageState extends State<MainPage> {
       _isLoged = isLoggedIn;
       _checkingSession = false;
     });
+    if (isLoggedIn) {
+      unawaited(StoreService.refreshStoresFromWorkspace());
+      unawaited(SavedOffersService.hydrateFromServer());
+    } else {
+      SavedOffersService.clear();
+    }
   }
 
   void _handleSessionChanged() {
@@ -60,9 +80,37 @@ class _MainPageState extends State<MainPage> {
       return;
     }
 
+    final wasLoggedIn = _isLoged;
+    final isLoggedIn = AuthService.isLoggedInNotifier.value;
+
     setState(() {
-      _isLoged = AuthService.isLoggedInNotifier.value;
+      _isLoged = isLoggedIn;
+      _selectedIndex = 0;
     });
+
+    if (isLoggedIn) {
+      unawaited(StoreService.refreshStoresFromWorkspace());
+      unawaited(SavedOffersService.hydrateFromServer());
+    } else {
+      SavedOffersService.clear();
+    }
+
+    if (wasLoggedIn && !isLoggedIn) {
+      // La sesion se invalido (probablemente el backend respondio 401).
+      // Redirigimos al login y avisamos al usuario.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tu sesion expiro. Inicia sesion nuevamente.'),
+          ),
+        );
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/signin', (route) => false);
+      });
+    }
   }
 
   void _handleThemeChanged() {
@@ -74,6 +122,7 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
+    MainTabBus.selectTab = null;
     AuthService.isLoggedInNotifier.removeListener(_handleSessionChanged);
     AppTheme.modeNotifier.removeListener(_handleThemeChanged);
     super.dispose();
@@ -143,6 +192,57 @@ class _MainPageState extends State<MainPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Notificaciones proximamente')),
     );
+  }
+
+  void _openCatalogSearch() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CatalogSearchPage(),
+      ),
+    );
+  }
+
+  bool get _isHomeTab => _selectedIndex == 0;
+
+  /// Acciones a la derecha del titulo "Ofertas" en Home: campana o boton
+  /// de inicio de sesion segun el estado de la sesion.
+  List<Widget> _homeAppBarActions() {
+    if (_isLoged) {
+      return [
+        IconButton(
+          tooltip: 'Notificaciones',
+          onPressed: _showNotifications,
+          icon: Icon(
+            Icons.notifications_none_outlined,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+      ];
+    }
+    return [
+      Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: TextButton.icon(
+          onPressed: () => Navigator.pushNamed(context, '/signin'),
+          icon: Icon(Icons.login, color: AppTheme.foregroundColor, size: 16),
+          label: Text(
+            'Iniciar Sesion',
+            style: TextStyle(
+              color: AppTheme.foregroundColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            backgroundColor: AppTheme.primaryColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          ),
+        ),
+      ),
+    ];
   }
 
   Widget _buildDesktopShell() {
@@ -314,16 +414,21 @@ class _MainPageState extends State<MainPage> {
                         color: AppTheme.foregroundColor,
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TrustAppBarActions(
-                              isLoggedIn: _isLoged,
-                              onNotificationsTap: _showNotifications,
+                      child: _isHomeTab
+                          ? _DesktopOffersHeader(
+                              onSearchTap: _openCatalogSearch,
+                              actions: _homeAppBarActions(),
+                            )
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: TrustAppBarActions(
+                                    isLoggedIn: _isLoged,
+                                    onNotificationsTap: _showNotifications,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                   Expanded(
@@ -346,24 +451,36 @@ class _MainPageState extends State<MainPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      backgroundColor: AppTheme.appBgColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.appBgColor,
-        shape: Border(
-          bottom: BorderSide(color: AppTheme.dividerColor, width: 1),
-        ),
-        automaticallyImplyLeading: false,
-        titleSpacing: 12,
-        title: _isLoged
-            ? TrustAppBarActions(
-                isLoggedIn: true,
-                onNotificationsTap: _showNotifications,
-              )
-            : null,
-        actions: [
-          if (!_isLoged)
-            Padding(
+    final PreferredSizeWidget appBar = _isHomeTab
+        ? AppBar(
+            toolbarHeight: HomeOffersAppBar.toolbarHeight,
+            automaticallyImplyLeading: false,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            shadowColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            backgroundColor: AppTheme.appBgColor,
+            flexibleSpace: HomeOffersAppBarBody(
+              onSearchTap: _openCatalogSearch,
+              actions: _homeAppBarActions(),
+            ),
+          )
+        : AppBar(
+            backgroundColor: AppTheme.appBgColor,
+            shape: Border(
+              bottom: BorderSide(color: AppTheme.dividerColor, width: 1),
+            ),
+            automaticallyImplyLeading: false,
+            titleSpacing: 12,
+            title: _isLoged
+                ? TrustAppBarActions(
+                    isLoggedIn: true,
+                    onNotificationsTap: _showNotifications,
+                  )
+                : null,
+            actions: [
+              if (!_isLoged)
+                Padding(
                   padding: const EdgeInsets.only(right: 10.0),
                   child: TextButton.icon(
                     onPressed: () {
@@ -386,8 +503,12 @@ class _MainPageState extends State<MainPage> {
                     ),
                   ),
                 ),
-        ],
-      ),
+            ],
+          );
+
+    return Scaffold(
+      backgroundColor: AppTheme.appBgColor,
+      appBar: appBar,
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -429,4 +550,79 @@ class _MainNavItem {
   final IconData icon;
 
   const _MainNavItem({required this.label, required this.icon});
+}
+
+/// Cabecera de Home en escritorio: titulo "Ofertas", caja "Buscar" clickable
+/// y acciones a la derecha. Mantiene la misma jerarquia visual que el app bar
+/// movil.
+class _DesktopOffersHeader extends StatelessWidget {
+  final VoidCallback onSearchTap;
+  final List<Widget> actions;
+
+  const _DesktopOffersHeader({
+    required this.onSearchTap,
+    this.actions = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'Ofertas',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Material(
+            color: AppTheme.appBgColor,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              onTap: onSearchTap,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                height: 44,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppTheme.dividerColor),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, size: 18, color: AppTheme.textMuted),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Buscar tiendas, productos o servicios...',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (actions.isNotEmpty) ...[
+          const SizedBox(width: 12),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: actions,
+          ),
+        ],
+      ],
+    );
+  }
 }

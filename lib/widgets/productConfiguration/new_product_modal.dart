@@ -86,6 +86,10 @@ class _ProductFormState extends State<ProductForm> {
   bool _loadingCategories = true;
   String? _categoriesError;
 
+  List<ProductCurrency> _availableCurrencies = const <ProductCurrency>[];
+  bool _loadingCurrencies = true;
+  String? _currenciesError;
+
   File? _pendingImage;
   String _savedImagePath = '';
   bool _saving = false;
@@ -140,6 +144,7 @@ class _ProductFormState extends State<ProductForm> {
     }
     _savedImagePath = initial?.imagePath ?? '';
     _loadCategories();
+    _loadCurrencies();
   }
 
   @override
@@ -186,6 +191,35 @@ class _ProductFormState extends State<ProductForm> {
       setState(() {
         _categoriesError = error.toString().replaceFirst('Exception: ', '');
         _loadingCategories = false;
+      });
+    }
+  }
+
+  Future<void> _loadCurrencies() async {
+    setState(() {
+      _loadingCurrencies = true;
+      _currenciesError = null;
+    });
+    try {
+      final currencies = await MarketService.getCurrencies();
+      if (!mounted) return;
+      final merged = <ProductCurrency>[
+        ...currencies,
+        for (final c in _selectedCurrencies)
+          if (!currencies.contains(c)) c,
+        if (_selectedPriceCurrency != null &&
+            !currencies.contains(_selectedPriceCurrency))
+          _selectedPriceCurrency!,
+      ];
+      setState(() {
+        _availableCurrencies = merged;
+        _loadingCurrencies = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _currenciesError = error.toString().replaceFirst('Exception: ', '');
+        _loadingCurrencies = false;
       });
     }
   }
@@ -268,34 +302,12 @@ class _ProductFormState extends State<ProductForm> {
       stock = parsed;
     }
 
-    final imagePath = _pendingImage?.path ?? _savedImagePath;
-
-    FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     try {
       final ProductModel result;
       if (_isEditing) {
-        result = await ProductService.updateProduct(
+        result = await ProductService.updateProductViaApi(
           widget.initialProduct!.id,
-          name: name,
-          category: category,
-          version: version,
-          price: price,
-          priceCurrency: priceCurrency,
-          condition: condition,
-          acceptedCurrencies: currencies,
-          description: description,
-          mainBenefit: mainBenefit,
-          technicalFeatures: technicalFeatures,
-          imagePath: imagePath,
-          taxesShippingInstall: taxesShippingInstall,
-          stock: stock,
-          warrantyAndReturns: warrantyAndReturns,
-          includedContent: includedContent,
-          usageConditions: usageConditions,
-        );
-      } else {
-        result = await ProductService.createProduct(
           storeId: widget.storeId,
           name: name,
           category: category,
@@ -307,7 +319,27 @@ class _ProductFormState extends State<ProductForm> {
           description: description,
           mainBenefit: mainBenefit,
           technicalFeatures: technicalFeatures,
-          imagePath: imagePath,
+          pendingImageFile: _pendingImage,
+          taxesShippingInstall: taxesShippingInstall,
+          stock: stock,
+          warrantyAndReturns: warrantyAndReturns,
+          includedContent: includedContent,
+          usageConditions: usageConditions,
+        );
+      } else {
+        result = await ProductService.createProductViaApi(
+          storeId: widget.storeId,
+          name: name,
+          category: category,
+          version: version,
+          price: price,
+          priceCurrency: priceCurrency,
+          condition: condition,
+          acceptedCurrencies: currencies,
+          description: description,
+          mainBenefit: mainBenefit,
+          technicalFeatures: technicalFeatures,
+          pendingImageFile: _pendingImage,
           taxesShippingInstall: taxesShippingInstall,
           stock: stock,
           warrantyAndReturns: warrantyAndReturns,
@@ -323,7 +355,7 @@ class _ProductFormState extends State<ProductForm> {
           content: Text(
             _isEditing
                 ? 'Producto "$name" actualizado'
-                : 'Producto "$name" agregado',
+                : 'Guardado como borrador. Pulsa Publicar cuando quieras mostrar el producto en el mercado.',
           ),
         ),
       );
@@ -557,83 +589,163 @@ class _ProductFormState extends State<ProductForm> {
           ),
         ),
         const SizedBox(width: 8),
-        Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.inputFillColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<ProductCurrency>(
-              value: _selectedPriceCurrency,
-              dropdownColor: AppTheme.foregroundColor,
-              hint: Text(
-                'Moneda',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.hintColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              icon: Icon(
-                Icons.keyboard_arrow_down,
-                size: 18,
-                color: AppTheme.textSecondary,
-              ),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-              items: [
-                for (final currency in ProductCurrency.allValues)
-                  DropdownMenuItem<ProductCurrency>(
-                    value: currency,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          currency.symbol,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          currency.value,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _selectedPriceCurrency = value;
-                  _selectedCurrencies.add(value);
-                });
-              },
-            ),
-          ),
-        ),
+        _buildPriceCurrencyDropdown(),
       ],
     );
   }
 
+  Widget _buildPriceCurrencyDropdown() {
+    if (_loadingCurrencies) {
+      return Container(
+        height: 44,
+        width: 110,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppTheme.inputFillColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (_currenciesError != null) {
+      return SizedBox(
+        height: 44,
+        child: TextButton.icon(
+          onPressed: _loadCurrencies,
+          icon: const Icon(Icons.refresh, size: 14),
+          label: const Text(
+            'Reintentar',
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
+      );
+    }
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.inputFillColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<ProductCurrency>(
+          value: _selectedPriceCurrency,
+          dropdownColor: AppTheme.foregroundColor,
+          hint: Text(
+            'Moneda',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.hintColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            size: 18,
+            color: AppTheme.textSecondary,
+          ),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+          ),
+          items: [
+            for (final currency in _availableCurrencies)
+              DropdownMenuItem<ProductCurrency>(
+                value: currency,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      currency.symbol,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      currency.value,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() {
+              _selectedPriceCurrency = value;
+              _selectedCurrencies.add(value);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildCurrencySelector() {
+    if (_loadingCurrencies) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Cargando monedas...',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_currenciesError != null) {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppTheme.errorSurface,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _currenciesError!,
+                style: TextStyle(fontSize: 12, color: AppTheme.errorColor),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _loadCurrencies,
+              icon: const Icon(Icons.refresh, size: 14),
+              label: const Text(
+                'Reintentar',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final currency in ProductCurrency.allValues)
+        for (final currency in _availableCurrencies)
           _buildCurrencyChip(currency),
       ],
     );

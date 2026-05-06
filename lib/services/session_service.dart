@@ -14,6 +14,14 @@ class SessionService {
   static final ValueNotifier<UserProfileModel?> currentUserNotifier =
       ValueNotifier(null);
 
+  /// Persiste la respuesta del verify: token [sessionToken] y, si viene en el
+  /// JSON, el objeto [user] (misma forma que usa el resto de la app).
+  ///
+  /// Si el verify no trae usuario, se limpia el cache de perfil hasta
+  /// [ProfileService.fetchCurrentUser].
+  ///
+  /// Siempre elimina el perfil de la sesion anterior antes de aplicar la nueva
+  /// respuesta, para no mezclar cuentas en el mismo dispositivo.
   static Future<void> persistVerifyResponse(String responseBody) async {
     final prefs = await SharedPreferences.getInstance();
     final rawBody = responseBody.trim();
@@ -25,17 +33,23 @@ class SessionService {
     }
 
     String? token;
-    UserProfileModel? user;
+    UserProfileModel? verifyUser;
     try {
       final dynamic decoded = jsonDecode(rawBody);
       token = ApiResponseUtils.extractToken(decoded);
-      user = ApiResponseUtils.extractUser(decoded);
       if (token == null && decoded is String) token = decoded.trim();
+      verifyUser = ApiResponseUtils.extractUser(decoded);
     } catch (_) {
       token = rawBody;
     }
 
-    await _persistUser(user, prefs);
+    if (verifyUser != null && !verifyUser.isEmpty) {
+      await saveUser(verifyUser);
+    } else {
+      await prefs.remove(authUserKey);
+      currentUserNotifier.value = null;
+    }
+
     await _persistToken(token, prefs);
   }
 
@@ -82,22 +96,19 @@ class SessionService {
     currentUserNotifier.value = null;
   }
 
+  /// Limpia la sesion local cuando una request autenticada respondio 401.
+  /// Disparar `isLoggedInNotifier` permite que `MainPage` redirija al login.
+  static Future<void> handleUnauthorized() async {
+    if (!isLoggedInNotifier.value &&
+        currentUserNotifier.value == null) {
+      return;
+    }
+    await clearSession();
+  }
+
   static String buildAuthorizationHeader(String token) {
     final trimmed = token.trim();
     return trimmed.toLowerCase().startsWith('bearer ') ? trimmed : 'Bearer $trimmed';
-  }
-
-  static Future<void> _persistUser(
-    UserProfileModel? user,
-    SharedPreferences prefs,
-  ) async {
-    if (user == null || user.isEmpty) {
-      await prefs.remove(authUserKey);
-      currentUserNotifier.value = null;
-      return;
-    }
-    await prefs.setString(authUserKey, jsonEncode(user.toJson()));
-    currentUserNotifier.value = user;
   }
 
   static Future<void> _persistToken(

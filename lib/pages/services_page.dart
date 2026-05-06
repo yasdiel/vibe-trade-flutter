@@ -95,6 +95,59 @@ class _ServicesScaffoldState extends State<_ServicesScaffold> {
   String? _categoryFilter;
   final Set<ProductCurrency> _currencyFilters = <ProductCurrency>{};
   final Set<ServiceTrait> _traitFilters = <ServiceTrait>{};
+  bool _syncingCatalog = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncCatalog(showSnackOnError: false);
+    });
+  }
+
+  Future<void> _syncCatalog({bool showSnackOnError = true}) async {
+    setState(() => _syncingCatalog = true);
+    try {
+      await ServiceService.refreshFromServer(widget.store.id);
+    } catch (e) {
+      if (!mounted) return;
+      if (showSnackOnError) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _syncingCatalog = false);
+    }
+  }
+
+  Future<void> _publishService(ServiceModel s) async {
+    try {
+      await ServiceService.publishService(widget.store.id, s.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Publicaste "${s.serviceType}". Ya es visible para clientes.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -279,6 +332,18 @@ class _ServicesScaffoldState extends State<_ServicesScaffold> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Actualizar servicios',
+            onPressed:
+                _syncingCatalog ? null : () => _syncCatalog(showSnackOnError: true),
+            icon: _syncingCatalog
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+          ),
           if (hasServices)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -376,6 +441,7 @@ class _ServicesScaffoldState extends State<_ServicesScaffold> {
                           services: filteredServices,
                           onEdit: (s) => _openEdit(context, s),
                           onDelete: (s) => _confirmDelete(context, s),
+                          onPublish: _publishService,
                         ),
                     ],
                   ),
@@ -394,11 +460,13 @@ class _ServicesGrid extends StatelessWidget {
   final List<ServiceModel> services;
   final ValueChanged<ServiceModel> onEdit;
   final ValueChanged<ServiceModel> onDelete;
+  final ValueChanged<ServiceModel> onPublish;
 
   const _ServicesGrid({
     required this.services,
     required this.onEdit,
     required this.onDelete,
+    required this.onPublish,
   });
 
   @override
@@ -422,6 +490,8 @@ class _ServicesGrid extends StatelessWidget {
                   service: service,
                   onEdit: () => onEdit(service),
                   onDelete: () => onDelete(service),
+                  onPublish:
+                      service.published ? null : () => onPublish(service),
                 ),
               ),
           ],

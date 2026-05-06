@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vibe_trade_v1/models/store_model.dart';
+import 'package:vibe_trade_v1/services/market_service.dart';
+import 'package:vibe_trade_v1/services/media_service.dart';
+import 'package:vibe_trade_v1/services/session_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
@@ -42,10 +45,28 @@ class _StoreCardState extends State<StoreCard> {
     }
     setState(() => _saving = true);
     try {
-      await StoreService.updateStore(
-        widget.store.id,
-        imagePath: _pendingImage!.path,
+      final avatarPath = await MediaService.uploadAvatar(_pendingImage!);
+      final user =
+          SessionService.currentUserNotifier.value ??
+          await SessionService.getSavedUser();
+      final uid = user?.id.trim() ?? '';
+      if (uid.isEmpty) throw Exception('Inicia sesion para subir la foto.');
+      final s = widget.store;
+      await MarketService.upsertWorkspaceStoreProfile(
+        storeId: s.id,
+        ownerUserId: uid,
+        name: s.name,
+        pitch: s.description,
+        categories: [...s.categories],
+        transportIncluded: s.hasOwnTransport,
+        verified: s.isVerified,
+        trustScore: s.trustScore,
+        websiteUrl: s.website,
+        avatarUrl: avatarPath,
+        latitude: s.latitude,
+        longitude: s.longitude,
       );
+      await StoreService.refreshStoresFromWorkspace();
       if (!mounted) return;
       setState(() => _pendingImage = null);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -91,6 +112,17 @@ class _StoreCardState extends State<StoreCard> {
     Widget child;
     if (pending != null) {
       child = Image.file(pending, width: 64, height: 64, fit: BoxFit.cover);
+    } else if (savedPath.startsWith('http') ||
+        savedPath.startsWith('/api/') ||
+        savedPath.startsWith('data:')) {
+      final resolved = MediaService.resolveMediaUrl(savedPath);
+      child = Image.network(
+        resolved,
+        width: 64,
+        height: 64,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackAvatar(fallbackLetter),
+      );
     } else if (savedPath.isNotEmpty && File(savedPath).existsSync()) {
       child = Image.file(
         File(savedPath),

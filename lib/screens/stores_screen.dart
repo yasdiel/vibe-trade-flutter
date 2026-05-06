@@ -18,6 +18,7 @@ class _StoresScreenState extends State<StoresScreen> {
   String _nameQuery = '';
   String? _categoryFilter;
   double _minTrustFilter = 0;
+  bool _refreshingStores = false;
 
   @override
   void initState() {
@@ -29,6 +30,16 @@ class _StoresScreenState extends State<StoresScreen> {
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _reloadStoresFromServer() async {
+    if (_refreshingStores) return;
+    setState(() => _refreshingStores = true);
+    try {
+      await StoreService.refreshStoresFromWorkspace();
+    } finally {
+      if (mounted) setState(() => _refreshingStores = false);
+    }
   }
 
   Future<void> _openCreateStore() async {
@@ -139,128 +150,251 @@ class _StoresScreenState extends State<StoresScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<List<StoreModel>>(
-      valueListenable: StoreService.storesNotifier,
-      builder: (context, stores, _) {
-        final availableCategories = _availableCategoriesFor(stores);
-        final effectiveCategory =
-            (_categoryFilter != null &&
-                availableCategories.contains(_categoryFilter))
-            ? _categoryFilter
-            : null;
-        final filteredStores = _filterStores(stores, effectiveCategory);
+    return ValueListenableBuilder<String?>(
+      valueListenable: StoreService.storesLoadErrorNotifier,
+      builder: (context, loadErr, _) {
+        return ValueListenableBuilder<List<StoreModel>>(
+          valueListenable: StoreService.storesNotifier,
+          builder: (context, stores, _) {
+            final availableCategories = _availableCategoriesFor(stores);
+            final effectiveCategory =
+                (_categoryFilter != null &&
+                    availableCategories.contains(_categoryFilter))
+                ? _categoryFilter
+                : null;
+            final filteredStores = _filterStores(stores, effectiveCategory);
 
-        return SingleChildScrollView(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.foregroundColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: AppTheme.isDark ? 0.4 : 0.06,
-                  ),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Header(count: stores.length),
-                const SizedBox(height: 16),
-                if (stores.isEmpty)
-                  _EmptyState(onAdd: _openCreateStore)
-                else ...[
-                  _StoreFilters(
-                    nameController: _nameController,
-                    onNameChanged: (value) =>
-                        setState(() => _nameQuery = value),
-                    selectedCategory: effectiveCategory,
-                    availableCategories: availableCategories,
-                    onCategoryChanged: (value) =>
-                        setState(() => _categoryFilter = value),
-                    minTrust: _minTrustFilter,
-                    onMinTrustChanged: (value) =>
-                        setState(() => _minTrustFilter = value),
-                    hasActiveFilters: _hasActiveFilters,
-                    onClearFilters: _resetFilters,
-                  ),
-                  const SizedBox(height: 12),
-                  if (filteredStores.isEmpty)
-                    _NoMatchesState(onClearFilters: _resetFilters)
-                  else
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        const spacing = 12.0;
-                        final isWide = constraints.maxWidth >= 720;
-                        final columns = isWide ? 2 : 1;
-                        final cardWidth = columns == 1
-                            ? constraints.maxWidth
-                            : (constraints.maxWidth -
-                                      spacing * (columns - 1)) /
-                                  columns;
-
-                        return Wrap(
-                          spacing: spacing,
-                          runSpacing: spacing,
-                          children: [
-                            for (final store in filteredStores)
-                              SizedBox(
-                                width: cardWidth,
-                                child: StoreCard(
-                                  key: ValueKey(store.id),
-                                  store: store,
-                                  onOpen: () => _openStoreDetail(store),
-                                  onEdit: () => _openEditStore(store),
-                                  onDelete: () => _confirmDelete(store),
-                                ),
-                              ),
-                          ],
-                        );
-                      },
+            return SingleChildScrollView(
+              child: Container(
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.foregroundColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: AppTheme.isDark ? 0.4 : 0.06,
+                      ),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
                     ),
-                ],
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _openCreateStore,
-                    icon: const Icon(Icons.add_business_outlined, size: 18),
-                    label: const Text(
-                      'Agregar tienda',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Header(
+                      count: stores.length,
+                      refreshing: _refreshingStores,
+                      onReload: _reloadStoresFromServer,
+                    ),
+                    const SizedBox(height: 16),
+                    if (loadErr != null) ...[
+                      _StoresLoadErrorBanner(
+                        message: loadErr,
+                        retryBusy: _refreshingStores,
+                        onRetry: _reloadStoresFromServer,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (stores.isEmpty && loadErr == null)
+                      _EmptyState(onAdd: _openCreateStore)
+                    else if (stores.isNotEmpty) ...[
+                      _StoreFilters(
+                        nameController: _nameController,
+                        onNameChanged: (value) =>
+                            setState(() => _nameQuery = value),
+                        selectedCategory: effectiveCategory,
+                        availableCategories: availableCategories,
+                        onCategoryChanged: (value) =>
+                            setState(() => _categoryFilter = value),
+                        minTrust: _minTrustFilter,
+                        onMinTrustChanged: (value) =>
+                            setState(() => _minTrustFilter = value),
+                        hasActiveFilters: _hasActiveFilters,
+                        onClearFilters: _resetFilters,
+                      ),
+                      const SizedBox(height: 12),
+                      if (filteredStores.isEmpty)
+                        _NoMatchesState(onClearFilters: _resetFilters)
+                      else
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            const spacing = 12.0;
+                            final isWide = constraints.maxWidth >= 720;
+                            final columns = isWide ? 2 : 1;
+                            final cardWidth = columns == 1
+                                ? constraints.maxWidth
+                                : (constraints.maxWidth -
+                                          spacing * (columns - 1)) /
+                                      columns;
+
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: [
+                                for (final store in filteredStores)
+                                  SizedBox(
+                                    width: cardWidth,
+                                    child: StoreCard(
+                                      key: ValueKey(store.id),
+                                      store: store,
+                                      onOpen: () => _openStoreDetail(store),
+                                      onEdit: () => _openEditStore(store),
+                                      onDelete: () => _confirmDelete(store),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                    ],
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _openCreateStore,
+                        icon: const Icon(Icons.add_business_outlined, size: 18),
+                        label: const Text(
+                          'Agregar tienda',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: AppTheme.foregroundColor,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: AppTheme.foregroundColor,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 }
 
+class _StoresLoadErrorBanner extends StatelessWidget {
+  final String message;
+  final bool retryBusy;
+  final VoidCallback onRetry;
+
+  const _StoresLoadErrorBanner({
+    required this.message,
+    required this.retryBusy,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppTheme.errorColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppTheme.errorColor.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: AppTheme.errorColor,
+                size: 24,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No pudimos cargar tus tiendas',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: retryBusy ? null : onRetry,
+              icon: retryBusy
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.primaryColor,
+                      ),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(
+                retryBusy ? 'Actualizando...' : 'Reintentar',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: BorderSide(color: AppTheme.primaryColor),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Header extends StatelessWidget {
   final int count;
+  final bool refreshing;
+  final VoidCallback onReload;
 
-  const _Header({required this.count});
+  const _Header({
+    required this.count,
+    required this.refreshing,
+    required this.onReload,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -283,6 +417,22 @@ class _Header extends StatelessWidget {
                 color: AppTheme.textPrimary,
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Recargar lista desde el servidor',
+            onPressed: refreshing ? null : onReload,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            padding: EdgeInsets.zero,
+            icon: refreshing
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.primaryColor,
+                    ),
+                  )
+                : Icon(Icons.refresh_rounded, color: AppTheme.primaryColor),
           ),
           if (count > 0)
             Container(

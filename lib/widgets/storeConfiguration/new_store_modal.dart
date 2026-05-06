@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vibe_trade_v1/models/store_model.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
+import 'package:vibe_trade_v1/services/session_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/modal_subtitle.dart';
@@ -173,36 +174,92 @@ class _NewStoreFormState extends State<NewStoreForm> {
     setState(() => _saving = true);
     try {
       final StoreModel result;
-      if (_isEditing) {
-        result = await StoreService.updateStore(
-          widget.initialStore!.id,
-          name: name,
-          description: description,
-          categories: List<String>.unmodifiable(_selectedCategories),
-          hasOwnTransport: _hasOwnTransport,
-          website: website,
-          latitude: _selectedLocation?.latitude,
-          longitude: _selectedLocation?.longitude,
-          clearLocation: _selectedLocation == null,
-        );
-      } else {
-        result = await StoreService.createStore(
-          name: name,
-          description: description,
-          categories: List<String>.unmodifiable(_selectedCategories),
-          hasOwnTransport: _hasOwnTransport,
-          website: website,
-          latitude: _selectedLocation?.latitude,
-          longitude: _selectedLocation?.longitude,
+      final owner =
+          SessionService.currentUserNotifier.value ??
+          await SessionService.getSavedUser();
+      final ownerUserId = owner?.id.trim() ?? '';
+      if (ownerUserId.isEmpty) {
+        throw Exception(
+          'No se encontro tu usuario. Inicia sesion e intenta de nuevo.',
         );
       }
+      if (_isEditing) {
+        final initial = widget.initialStore!;
+        await MarketService.upsertWorkspaceStoreProfile(
+          storeId: initial.id,
+          ownerUserId: ownerUserId,
+          name: name,
+          pitch: description,
+          categories: List<String>.from(_selectedCategories),
+          transportIncluded: _hasOwnTransport,
+          verified: initial.isVerified,
+          trustScore: initial.trustScore,
+          websiteUrl: website,
+          avatarUrl: initial.imagePath.trim().isNotEmpty ? initial.imagePath : null,
+          latitude: _selectedLocation?.latitude,
+          longitude: _selectedLocation?.longitude,
+        );
+        await StoreService.refreshStoresFromWorkspace();
+        result =
+            StoreService.getById(initial.id) ??
+            StoreModel(
+              id: initial.id,
+              name: name,
+              description: description,
+              categories: List<String>.unmodifiable(_selectedCategories),
+              hasOwnTransport: _hasOwnTransport,
+              website: website,
+              latitude: _selectedLocation?.latitude,
+              longitude: _selectedLocation?.longitude,
+              imagePath: initial.imagePath,
+              createdAt: initial.createdAt,
+              isVerified: initial.isVerified,
+              trustScore: initial.trustScore,
+            );
+      } else {
+        final storeId = StoreService.generateNewStoreId();
+        await MarketService.upsertWorkspaceStoreProfile(
+          storeId: storeId,
+          ownerUserId: ownerUserId,
+          name: name,
+          pitch: description,
+          categories: List<String>.from(_selectedCategories),
+          transportIncluded: _hasOwnTransport,
+          verified: false,
+          trustScore: 80,
+          websiteUrl: website,
+          avatarUrl: null,
+          latitude: _selectedLocation?.latitude,
+          longitude: _selectedLocation?.longitude,
+        );
+        await StoreService.refreshStoresFromWorkspace();
+        result =
+            StoreService.getById(storeId) ??
+            StoreModel(
+              id: storeId,
+              name: name,
+              description: description,
+              categories: List<String>.unmodifiable(_selectedCategories),
+              hasOwnTransport: _hasOwnTransport,
+              website: website,
+              latitude: _selectedLocation?.latitude,
+              longitude: _selectedLocation?.longitude,
+              imagePath: '',
+              createdAt: DateTime.now(),
+              isVerified: false,
+              trustScore: 80,
+            );
+      }
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context, result);
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
-            _isEditing ? 'Tienda "$name" actualizada' : 'Tienda "$name" creada',
+            _isEditing
+                ? 'Tienda "$name" actualizada'
+                : 'La tienda se agrego correctamente.',
           ),
         ),
       );

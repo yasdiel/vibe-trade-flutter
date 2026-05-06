@@ -4,9 +4,14 @@ import 'package:http/http.dart' as http;
 import 'package:vibe_trade_v1/config/env.dart';
 import 'package:vibe_trade_v1/models/user_profile_model.dart';
 import 'package:vibe_trade_v1/services/api_response_utils.dart';
+import 'package:vibe_trade_v1/services/auth_exceptions.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
 
 class ProfileService {
+  /// Perfil fusionado desde sesión persistente (`SessionResponse`).
+  static String get _sessionUrl => '$baseUrl/Auth/session';
+
+  /// Actualización parcial de perfil persistido (`PatchProfile`).
   static String get _profileUrl => '$baseUrl/Auth/profile';
 
   static Future<UserProfileModel?> fetchCurrentUser() async {
@@ -14,19 +19,33 @@ class ProfileService {
     if (token == null) return null;
 
     final response = await http.get(
-      Uri.parse(_profileUrl),
+      Uri.parse(_sessionUrl),
       headers: {'Authorization': SessionService.buildAuthorizationHeader(token)},
     );
 
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await SessionService.handleUnauthorized();
+      throw const UnauthorizedException();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      return null;
+      throw Exception(
+        ApiResponseUtils.extractErrorMessage(
+          response,
+          fallback:
+              'No se pudo obtener el perfil del usuario (HTTP ${response.statusCode}).',
+        ),
+      );
     }
 
-    final user = _extractUser(response.body);
-    if (user == null || user.isEmpty) return null;
+    final extracted = _extractUser(response.body);
+    if (extracted == null || extracted.isEmpty) {
+      throw Exception(
+        'El backend devolvio un perfil vacio o con formato invalido.',
+      );
+    }
 
-    await SessionService.saveUser(user);
-    return user;
+    await SessionService.saveUser(extracted);
+    return extracted;
   }
 
   static Future<UserProfileModel> updateUserProfile({
@@ -38,7 +57,7 @@ class ProfileService {
     String? avatarUrl,
   }) async {
     final token = await SessionService.getSavedToken();
-    if (token == null) throw Exception('No hay una sesion activa.');
+    if (token == null) throw const UnauthorizedException();
 
     final currentUser =
         SessionService.currentUserNotifier.value ?? await SessionService.getSavedUser();
@@ -58,6 +77,10 @@ class ProfileService {
       avatarUrl: avatarUrl,
     )));
 
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await SessionService.handleUnauthorized();
+      throw const UnauthorizedException();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         ApiResponseUtils.extractErrorMessage(

@@ -2,25 +2,43 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/models/product_model.dart';
+import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductModel product;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onPublish;
 
   const ProductCard({
     super.key,
     required this.product,
     required this.onEdit,
     required this.onDelete,
+    this.onPublish,
   });
 
   Widget _buildImage() {
-    final path = product.imagePath;
+    final path = product.imagePath.trim();
+    if (path.isNotEmpty &&
+        (path.startsWith('http://') ||
+            path.startsWith('https://') ||
+            path.startsWith('/api/'))) {
+      final url = MediaService.resolveMediaUrl(path);
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _imagePlaceholder(),
+      );
+    }
     if (path.isNotEmpty && File(path).existsSync()) {
       return Image.file(File(path), fit: BoxFit.cover);
     }
+    return _imagePlaceholder();
+  }
+
+  Widget _imagePlaceholder() {
     final letter = product.name.trim().isNotEmpty
         ? product.name.trim()[0].toUpperCase()
         : 'P';
@@ -230,6 +248,12 @@ class ProductCard extends StatelessWidget {
                   spacing: 5,
                   runSpacing: 5,
                   children: [
+                    if (!product.published)
+                      _buildBadge(
+                        text: 'Borrador',
+                        color: AppTheme.warningColor,
+                        icon: Icons.visibility_off_outlined,
+                      ),
                     if (product.condition != null)
                       _buildBadge(
                         text: product.condition!.label,
@@ -268,6 +292,31 @@ class ProductCard extends StatelessWidget {
                       fontSize: 12,
                       color: AppTheme.textSecondary,
                       height: 1.35,
+                    ),
+                  ),
+                ],
+                if (!product.published && onPublish != null) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 36,
+                    child: ElevatedButton.icon(
+                      onPressed: onPublish,
+                      icon: const Icon(Icons.publish, size: 16),
+                      label: const Text(
+                        'Publicar',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.successColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
                   ),
                 ],

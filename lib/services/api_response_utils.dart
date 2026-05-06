@@ -24,6 +24,7 @@ class ApiResponseUtils {
 
     if (value is Map) {
       const keys = [
+        'sessionToken',
         'token',
         'accessToken',
         'access_token',

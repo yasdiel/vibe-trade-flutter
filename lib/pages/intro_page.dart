@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vibe_trade_v1/services/session_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 import 'package:vibe_trade_v1/widgets/intro_btn.dart';
 import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
@@ -43,7 +44,9 @@ class IntroPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             TextButton.icon(
-              onPressed: () {
+              onPressed: () async {
+                await SessionService.clearSession();
+                if (!context.mounted) return;
                 Navigator.pushReplacementNamed(context, '/home');
               },
               icon: Icon(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vibe_trade_v1/services/auth_service.dart';
+import 'package:vibe_trade_v1/utils/phone_e164.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class OtpSheet extends StatefulWidget {
@@ -27,6 +28,7 @@ class _OtpSheetState extends State<OtpSheet> {
 
   bool _showError = false;
   bool _showVerifyError = false;
+  String? _verifyErrorMessage;
   bool _showResendError = false;
   bool _verifyingCode = false;
   bool _resendingCode = false;
@@ -72,21 +74,23 @@ class _OtpSheetState extends State<OtpSheet> {
     setState(() {
       _verifyingCode = true;
       _showVerifyError = false;
+      _verifyErrorMessage = null;
     });
 
     try {
       await AuthService.verifyCode(
-        phone: widget.phoneNumber,
+        phone: buildE164Phone(widget.code, widget.phoneNumber),
         code: code,
         mode: widget.mode,
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) {
         return;
       }
       setState(() {
         _verifyingCode = false;
         _showVerifyError = true;
+        _verifyErrorMessage = _formatVerifyError(e);
       });
       return;
     }
@@ -97,6 +101,15 @@ class _OtpSheetState extends State<OtpSheet> {
 
     setState(() => _verifyingCode = false);
     Navigator.pushReplacementNamed(context, '/home');
+  }
+
+  String _formatVerifyError(Object error) {
+    final message = error is Exception
+        ? error.toString().replaceFirst('Exception: ', '')
+        : error.toString();
+    return message.isEmpty
+        ? 'No se pudo verificar el codigo. Intenta nuevamente.'
+        : message;
   }
 
   void _startResendCountdown() {
@@ -130,7 +143,10 @@ class _OtpSheetState extends State<OtpSheet> {
     });
 
     try {
-      await AuthService.requestCode(phone: widget.phoneNumber, mode: widget.mode);
+      await AuthService.requestCode(
+        phone: buildE164Phone(widget.code, widget.phoneNumber),
+        mode: widget.mode,
+      );
     } catch (_) {
       if (!mounted) {
         return;
@@ -240,17 +256,18 @@ class _OtpSheetState extends State<OtpSheet> {
                 ),
               ),
             if (_showVerifyError)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'No se pudo verificar el codigo. Intenta nuevamente.',
+                  _verifyErrorMessage ??
+                      'No se pudo verificar el codigo. Intenta nuevamente.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.red,
                     fontWeight: FontWeight.w700,
                   ),
-                  ),
                 ),
+              ),
             if (_showResendError)
               const Padding(
                 padding: EdgeInsets.only(bottom: 8),

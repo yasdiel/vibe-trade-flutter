@@ -96,6 +96,57 @@ class _ProductsScaffoldState extends State<_ProductsScaffold> {
   final Set<ProductCurrency> _currencyFilters = <ProductCurrency>{};
   ProductSortOrder _sortOrder = ProductSortOrder.none;
   RangeValues? _priceRange;
+  bool _syncingCatalog = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncCatalog(showSnackOnError: false);
+    });
+  }
+
+  Future<void> _syncCatalog({bool showSnackOnError = true}) async {
+    setState(() => _syncingCatalog = true);
+    try {
+      await ProductService.refreshFromServer(widget.store.id);
+    } catch (e) {
+      if (!mounted) return;
+      if (showSnackOnError) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _syncingCatalog = false);
+    }
+  }
+
+  Future<void> _publishProduct(ProductModel product) async {
+    try {
+      await ProductService.publishProduct(widget.store.id, product.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Publicaste "${product.name}". Ya es visible para compradores.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -306,6 +357,18 @@ class _ProductsScaffoldState extends State<_ProductsScaffold> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Actualizar catalogo',
+            onPressed:
+                _syncingCatalog ? null : () => _syncCatalog(showSnackOnError: true),
+            icon: _syncingCatalog
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+          ),
           if (hasProducts)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -413,6 +476,7 @@ class _ProductsScaffoldState extends State<_ProductsScaffold> {
                           products: filteredProducts,
                           onEdit: (p) => _openEdit(context, p),
                           onDelete: (p) => _confirmDelete(context, p),
+                          onPublish: _publishProduct,
                         ),
                     ],
                   ),
@@ -431,11 +495,13 @@ class _ProductsGrid extends StatelessWidget {
   final List<ProductModel> products;
   final ValueChanged<ProductModel> onEdit;
   final ValueChanged<ProductModel> onDelete;
+  final ValueChanged<ProductModel> onPublish;
 
   const _ProductsGrid({
     required this.products,
     required this.onEdit,
     required this.onDelete,
+    required this.onPublish,
   });
 
   @override
@@ -460,6 +526,7 @@ class _ProductsGrid extends StatelessWidget {
                   product: product,
                   onEdit: () => onEdit(product),
                   onDelete: () => onDelete(product),
+                  onPublish: product.published ? null : () => onPublish(product),
                 ),
               ),
           ],

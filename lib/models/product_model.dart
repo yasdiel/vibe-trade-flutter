@@ -107,6 +107,8 @@ class ProductModel {
   final String mainBenefit;
   final String technicalFeatures;
   final String imagePath;
+  /// URLs del backend (`/api/v1/media/...`); se incluyen todas en PUT.
+  final List<String> photoUrls;
   final DateTime createdAt;
 
   // Datos comerciales opcionales adicionales.
@@ -115,6 +117,9 @@ class ProductModel {
   final String warrantyAndReturns;
   final String includedContent;
   final String usageConditions;
+
+  /// Alineado a `published` del backend (`false` = borrador).
+  final bool published;
 
   const ProductModel({
     required this.id,
@@ -130,12 +135,14 @@ class ProductModel {
     required this.mainBenefit,
     required this.technicalFeatures,
     required this.imagePath,
+    this.photoUrls = const <String>[],
     required this.createdAt,
     this.taxesShippingInstall = '',
     this.stock,
     this.warrantyAndReturns = '',
     this.includedContent = '',
     this.usageConditions = '',
+    this.published = false,
   });
 
   ProductModel copyWith({
@@ -150,12 +157,14 @@ class ProductModel {
     String? mainBenefit,
     String? technicalFeatures,
     String? imagePath,
+    List<String>? photoUrls,
     DateTime? createdAt,
     String? taxesShippingInstall,
     Object? stock = _kCopyUnset,
     String? warrantyAndReturns,
     String? includedContent,
     String? usageConditions,
+    bool? published,
   }) {
     return ProductModel(
       id: id,
@@ -171,6 +180,7 @@ class ProductModel {
       mainBenefit: mainBenefit ?? this.mainBenefit,
       technicalFeatures: technicalFeatures ?? this.technicalFeatures,
       imagePath: imagePath ?? this.imagePath,
+      photoUrls: photoUrls ?? this.photoUrls,
       createdAt: createdAt ?? this.createdAt,
       taxesShippingInstall:
           taxesShippingInstall ?? this.taxesShippingInstall,
@@ -178,6 +188,7 @@ class ProductModel {
       warrantyAndReturns: warrantyAndReturns ?? this.warrantyAndReturns,
       includedContent: includedContent ?? this.includedContent,
       usageConditions: usageConditions ?? this.usageConditions,
+      published: published ?? this.published,
     );
   }
 
@@ -197,17 +208,28 @@ class ProductModel {
       'mainBenefit': mainBenefit,
       'technicalFeatures': technicalFeatures,
       'imagePath': imagePath,
+      'photoUrls': photoUrls,
       'createdAt': createdAt.toIso8601String(),
       'taxesShippingInstall': taxesShippingInstall,
       'stock': stock,
       'warrantyAndReturns': warrantyAndReturns,
       'includedContent': includedContent,
       'usageConditions': usageConditions,
+      'published': published,
     };
   }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     final rawCurrencies = (json['acceptedCurrencies'] as List?) ?? const [];
+    final rawPhotos = (json['photoUrls'] as List?) ?? const [];
+    final parsedPhotos =
+        rawPhotos.whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty).toList(growable: false);
+    final fallbackPath = (json['imagePath'] as String?) ?? '';
+    final photoUrls = parsedPhotos.isNotEmpty
+        ? List<String>.unmodifiable(parsedPhotos)
+        : (fallbackPath.isNotEmpty ? List<String>.unmodifiable(<String>[fallbackPath]) : const <String>[]);
+    final imagePath = photoUrls.isNotEmpty ? photoUrls.first : fallbackPath;
+
     return ProductModel(
       id: (json['id'] as String?) ?? '',
       storeId: (json['storeId'] as String?) ?? '',
@@ -227,7 +249,8 @@ class ProductModel {
       description: (json['description'] as String?) ?? '',
       mainBenefit: (json['mainBenefit'] as String?) ?? '',
       technicalFeatures: (json['technicalFeatures'] as String?) ?? '',
-      imagePath: (json['imagePath'] as String?) ?? '',
+      imagePath: imagePath,
+      photoUrls: photoUrls,
       createdAt:
           DateTime.tryParse((json['createdAt'] as String?) ?? '') ??
           DateTime.now(),
@@ -237,6 +260,7 @@ class ProductModel {
       warrantyAndReturns: (json['warrantyAndReturns'] as String?) ?? '',
       includedContent: (json['includedContent'] as String?) ?? '',
       usageConditions: (json['usageConditions'] as String?) ?? '',
+      published: json['published'] as bool? ?? false,
     );
   }
 }

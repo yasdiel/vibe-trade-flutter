@@ -2,76 +2,42 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/models/service_model.dart';
+import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
 
 class ServiceCard extends StatelessWidget {
   final ServiceModel service;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onPublish;
 
   const ServiceCard({
     super.key,
     required this.service,
     required this.onEdit,
     required this.onDelete,
+    this.onPublish,
   });
 
-  String? get _firstImagePath {
+  String? _firstDisplayPath() {
     for (final path in service.imagePaths) {
-      if (path.isNotEmpty && File(path).existsSync()) {
-        return path;
+      final t = path.trim();
+      if (t.isEmpty) continue;
+      if (t.startsWith('http://') ||
+          t.startsWith('https://') ||
+          t.startsWith('/api/')) {
+        return t;
+      }
+      if (File(t).existsSync()) {
+        return t;
       }
     }
     return null;
   }
 
-  Widget _buildImage() {
-    final path = _firstImagePath;
-    if (path != null) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.file(File(path), fit: BoxFit.cover),
-          if (service.imagePaths.length > 1)
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.photo_library_outlined,
-                      size: 12,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${service.imagePaths.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      );
-    }
-    final letter = service.serviceType.trim().isNotEmpty
-        ? service.serviceType.trim()[0].toUpperCase()
-        : 'S';
+  Widget _fallbackGradient(String serviceType) {
+    final letter =
+        serviceType.isNotEmpty ? serviceType[0].toUpperCase() : 'S';
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -90,6 +56,74 @@ class ServiceCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _galleryBadge() {
+    if (service.imagePaths.length <= 1) return const SizedBox.shrink();
+    return Positioned(
+      right: 8,
+      top: 8,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.photo_library_outlined,
+              size: 12,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${service.imagePaths.length}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImage() {
+    final path = _firstDisplayPath();
+    final stype = service.serviceType.trim();
+
+    if (path != null &&
+        (path.startsWith('http://') ||
+            path.startsWith('https://') ||
+            path.startsWith('/api/'))) {
+      final url = MediaService.resolveMediaUrl(path);
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            url,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _fallbackGradient(stype),
+          ),
+          _galleryBadge(),
+        ],
+      );
+    }
+    if (path != null && File(path).existsSync()) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(File(path), fit: BoxFit.cover),
+          _galleryBadge(),
+        ],
+      );
+    }
+
+    return _fallbackGradient(stype);
   }
 
   Widget _buildBadge({
@@ -181,6 +215,12 @@ class ServiceCard extends StatelessWidget {
                   spacing: 5,
                   runSpacing: 5,
                   children: [
+                    if (!service.published)
+                      _buildBadge(
+                        text: 'Borrador',
+                        color: AppTheme.warningColor,
+                        icon: Icons.visibility_off_outlined,
+                      ),
                     if (service.hasWarranty)
                       _buildBadge(
                         text: 'Garantia',
@@ -219,6 +259,31 @@ class ServiceCard extends StatelessWidget {
                       fontSize: 12,
                       color: AppTheme.textSecondary,
                       height: 1.35,
+                    ),
+                  ),
+                ],
+                if (!service.published && onPublish != null) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 36,
+                    child: ElevatedButton.icon(
+                      onPressed: onPublish,
+                      icon: const Icon(Icons.publish, size: 16),
+                      label: const Text(
+                        'Publicar',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.successColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
                   ),
                 ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/utils/phone_e164.dart';
 import 'package:vibe_trade_v1/widgets/desktop_auth_layout.dart';
 import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
 import '../models/country_model.dart';
@@ -81,7 +82,7 @@ class _SigninPageState extends State<SigninPage> {
     });
 
     try {
-      await AuthService.requestCode(phone: _phoneNumber);
+      await AuthService.requestCode(phone: buildE164Phone(_phoneCode, _phoneNumber));
     } catch (_) {
       if (!mounted) {
         return;

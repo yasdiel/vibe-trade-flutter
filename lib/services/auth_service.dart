@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:vibe_trade_v1/config/env.dart';
 import 'package:vibe_trade_v1/models/user_profile_model.dart';
+import 'package:vibe_trade_v1/services/auth_exceptions.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/profile_service.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
@@ -59,49 +60,88 @@ class AuthService {
     required String code,
     String? mode,
   }) async {
+    final verifyBody = _verifyRequestBody(phone, code, mode);
+
     final response = await http.post(
       Uri.parse(_verifyUrl),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(_verifyRequestBody(phone, code, mode)),
+      body: jsonEncode(verifyBody),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to verify code: ${response.statusCode}');
+      throw Exception(
+        'No se pudo verificar el codigo (HTTP ${response.statusCode}). '
+        'Respuesta: ${response.body.isNotEmpty ? response.body : "(vacia)"}',
+      );
     }
+
+    // Persistimos el token y dejamos limpio cualquier perfil de una sesion
+    // anterior. El perfil correcto se trae a continuacion desde el backend.
     await SessionService.persistVerifyResponse(response.body);
-    await ProfileService.fetchCurrentUser();
+
+    // Refrescamos desde `GET /Auth/session` cuando esta disponible; si falla por
+    // red u otro error no-401, conservamos token y usuario devueltos por verify.
+    try {
+      await ProfileService.fetchCurrentUser();
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      final cached = SessionService.currentUserNotifier.value;
+      if (cached == null || cached.isEmpty) {
+        await SessionService.clearSession();
+        rethrow;
+      }
+    }
   }
 
   static Future<String?> getSavedToken() {
     return SessionService.getSavedToken();
   }
 
+  /// Carga la sesion local y la valida contra el backend. Si el token esta
+  /// expirado o no es valido (401/403), [ProfileService.fetchCurrentUser]
+  /// limpia la sesion y este metodo devuelve `false`. Errores transitorios de
+  /// red no invalidan la sesion local.
   static Future<bool> hydrateSession() async {
-    final isLoggedIn = await SessionService.hydrateSession();
-    if (isLoggedIn) {
+    final hasLocalSession = await SessionService.hydrateSession();
+    if (!hasLocalSession) return false;
+
+    try {
       await ProfileService.fetchCurrentUser();
+    } on UnauthorizedException {
+      return false;
+    } catch (_) {
+      // Errores de red u otros: no invalidamos la sesion local para tolerar
+      // momentos sin conexion. La proxima request autenticada podra detectar
+      // un 401 real.
     }
-    return isLoggedIn;
+    return SessionService.isLoggedInNotifier.value;
   }
 
   static Future<UserProfileModel?> getSavedUser() {
     return SessionService.getSavedUser();
   }
 
+  /// Cierra la sesion: notifica al backend (best-effort) y siempre limpia el
+  /// estado local. El perfil cacheado, token y respuesta del verify se
+  /// eliminan aunque la llamada de logout falle, para garantizar que al
+  /// volver a iniciar sesion no queden datos del usuario anterior.
   static Future<void> signOut() async {
     final token = await SessionService.getSavedToken();
-    if (token == null) {
-      throw Exception('No hay una sesion activa para cerrar.');
+
+    if (token != null) {
+      try {
+        await http.post(
+          Uri.parse(_logoutUrl),
+          headers: {
+            'Authorization': SessionService.buildAuthorizationHeader(token),
+          },
+        );
+      } catch (_) {
+        // Errores de red no impiden cerrar sesion localmente.
+      }
     }
 
-    final response = await http.post(
-      Uri.parse(_logoutUrl),
-      headers: {'Authorization': SessionService.buildAuthorizationHeader(token)},
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('No se pudo cerrar la sesion. Intenta nuevamente.');
-    }
     await SessionService.clearSession();
   }
 
@@ -129,13 +169,18 @@ class AuthService {
     return body;
   }
 
+  /// El backend exige siempre las tres claves: `phone`, `code`, `mode`.
+  /// En login normal [mode] es null y se envia `mode: ""`; en registro se envia
+  /// `"register"`.
   static Map<String, dynamic> _verifyRequestBody(
     String phone,
     String code,
     String? mode,
   ) {
-    final body = <String, dynamic>{'phone': phone, 'code': code};
-    if (mode != null && mode.isNotEmpty) body['mode'] = mode;
-    return body;
+    return <String, dynamic>{
+      'phone': phone,
+      'code': code,
+      'mode': mode ?? '',
+    };
   }
 }

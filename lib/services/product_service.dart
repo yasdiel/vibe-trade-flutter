@@ -1,14 +1,17 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vibe_trade_v1/catalog/catalog_product_json.dart';
 import 'package:vibe_trade_v1/models/product_model.dart';
+import 'package:vibe_trade_v1/services/market_service.dart';
+import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
 
-/// Mock catalog of products. Each product belongs to a store via [storeId].
-/// Persists to [SharedPreferences] and keeps the parent store's
-/// [StoreModel.productsCount] in sync automatically.
+/// Catálogo de productos sincronizado con
+/// `POST /Market/stores/{id}/detail` y `PUT/DELETE …/products/…`.
 class ProductService {
   static const String _productsKey = 'simulated_products';
 
@@ -38,7 +41,34 @@ class ProductService {
     return null;
   }
 
-  static Future<ProductModel> createProduct({
+  /// Sincroniza productos desde `POST …/stores/{storeId}/detail`.
+  static Future<void> refreshFromServer(String storeId) async {
+    await hydrate();
+    final sid = storeId.trim();
+    if (sid.isEmpty) return;
+
+    final root = await MarketService.fetchStoreCatalogDetailDecoded(sid);
+    final catalog = root['catalog'];
+    if (catalog is! Map<String, dynamic>) return;
+
+    final rawList = catalog['products'];
+    if (rawList is! List) return;
+
+    final parsed =
+        rawList.whereType<Map>().map((raw) {
+          final m = Map<String, dynamic>.from(raw as Map);
+          return CatalogProductJson.fromApiMap(m);
+        }).where((p) => p.id.isNotEmpty).toList();
+
+    productsNotifier.value = <ProductModel>[
+      ...productsNotifier.value.where((p) => p.storeId != sid),
+      ...parsed,
+    ];
+    await _persist();
+    await _syncStoreCount(sid);
+  }
+
+  static Future<ProductModel> createProductViaApi({
     required String storeId,
     required String name,
     required String category,
@@ -47,10 +77,10 @@ class ProductService {
     required ProductCurrency priceCurrency,
     required ProductCondition condition,
     required List<ProductCurrency> acceptedCurrencies,
-    String description = '',
-    String mainBenefit = '',
-    String technicalFeatures = '',
-    String imagePath = '',
+    required String description,
+    required String mainBenefit,
+    required String technicalFeatures,
+    File? pendingImageFile,
     String taxesShippingInstall = '',
     int? stock,
     String warrantyAndReturns = '',
@@ -58,12 +88,15 @@ class ProductService {
     String usageConditions = '',
   }) async {
     await hydrate();
+
     final normalizedCurrencies = <ProductCurrency>{
       priceCurrency,
       ...acceptedCurrencies,
     }.toList(growable: false);
-    final product = ProductModel(
-      id: _generateId(),
+
+    final productId = _generateId();
+    var draft = ProductModel(
+      id: productId,
       storeId: storeId,
       name: name.trim(),
       category: category.trim(),
@@ -77,25 +110,43 @@ class ProductService {
       description: description.trim(),
       mainBenefit: mainBenefit.trim(),
       technicalFeatures: technicalFeatures.trim(),
-      imagePath: imagePath,
+      imagePath: '',
+      photoUrls: const <String>[],
       createdAt: DateTime.now(),
       taxesShippingInstall: taxesShippingInstall.trim(),
       stock: stock,
       warrantyAndReturns: warrantyAndReturns.trim(),
       includedContent: includedContent.trim(),
       usageConditions: usageConditions.trim(),
+      published: false,
     );
-    productsNotifier.value = <ProductModel>[
-      ...productsNotifier.value,
-      product,
-    ];
-    await _persist();
-    await _syncStoreCount(storeId);
-    return product;
+
+    var urls = const <String>[];
+    if (pendingImageFile != null) {
+      final url = await MediaService.uploadAvatar(pendingImageFile);
+      urls = [url];
+      draft = draft.copyWith(imagePath: url, photoUrls: urls);
+    }
+
+    final body = CatalogProductJson.toUpsertBody(
+      draft,
+      storeId: storeId,
+      photoUrls: urls.isNotEmpty ? urls : null,
+      published: false,
+    );
+
+    await MarketService.putStoreProduct(
+      storeId: storeId,
+      productId: productId,
+      body: body,
+    );
+    await refreshFromServer(storeId);
+    return getById(productId) ?? draft;
   }
 
-  static Future<ProductModel> updateProduct(
+  static Future<ProductModel> updateProductViaApi(
     String id, {
+    required String storeId,
     String? name,
     String? category,
     String? version,
@@ -106,32 +157,28 @@ class ProductService {
     String? description,
     String? mainBenefit,
     String? technicalFeatures,
-    String? imagePath,
-    String? taxesShippingInstall,
+    File? pendingImageFile,
     Object? stock = _kStockUnset,
+    String? taxesShippingInstall,
     String? warrantyAndReturns,
     String? includedContent,
     String? usageConditions,
   }) async {
     await hydrate();
-    final list = <ProductModel>[...productsNotifier.value];
-    final index = list.indexWhere((product) => product.id == id);
-    if (index == -1) {
-      throw StateError('Producto no encontrado');
-    }
+    final existing = getById(id);
+    if (existing == null) throw StateError('Producto no encontrado');
 
     List<ProductCurrency>? normalizedCurrencies;
     if (acceptedCurrencies != null || priceCurrency != null) {
-      final base = acceptedCurrencies ?? list[index].acceptedCurrencies;
-      final pc = priceCurrency ?? list[index].priceCurrency;
-      final merged = <ProductCurrency>{
+      final base = acceptedCurrencies ?? existing.acceptedCurrencies;
+      final pc = priceCurrency ?? existing.priceCurrency;
+      normalizedCurrencies = <ProductCurrency>{
         if (pc != null) pc,
         ...base,
-      };
-      normalizedCurrencies = merged.toList(growable: false);
+      }.toList(growable: false);
     }
 
-    final updated = list[index].copyWith(
+    var next = existing.copyWith(
       name: name?.trim(),
       category: category?.trim(),
       version: version?.trim(),
@@ -142,50 +189,131 @@ class ProductService {
       description: description?.trim(),
       mainBenefit: mainBenefit?.trim(),
       technicalFeatures: technicalFeatures?.trim(),
-      imagePath: imagePath,
       taxesShippingInstall: taxesShippingInstall?.trim(),
-      stock: identical(stock, _kStockUnset) ? list[index].stock : stock,
+      stock:
+          identical(stock, _kStockUnset) ? existing.stock : stock as int?,
       warrantyAndReturns: warrantyAndReturns?.trim(),
       includedContent: includedContent?.trim(),
       usageConditions: usageConditions?.trim(),
     );
-    list[index] = updated;
-    productsNotifier.value = list;
-    await _persist();
-    return updated;
+
+    File? uploadCandidate = pendingImageFile;
+    if (uploadCandidate == null &&
+        next.imagePath.isNotEmpty &&
+        _looksLikeLocalFilesystemPath(next.imagePath)) {
+      try {
+        final f = File(next.imagePath.trim());
+        if (f.existsSync()) uploadCandidate = f;
+      } catch (_) {}
+    }
+
+    var photoUrls = List<String>.from(next.photoUrls);
+    if (uploadCandidate != null) {
+      final u = await MediaService.uploadAvatar(uploadCandidate);
+      photoUrls = [u];
+      next = next.copyWith(imagePath: u, photoUrls: photoUrls);
+    }
+
+    final body = CatalogProductJson.toUpsertBody(
+      next,
+      storeId: storeId,
+      photoUrls: photoUrls.isNotEmpty ? photoUrls : null,
+      published: existing.published,
+    );
+
+    await MarketService.putStoreProduct(
+      storeId: storeId,
+      productId: id,
+      body: body,
+    );
+    await refreshFromServer(storeId);
+    return getById(id) ?? next;
+  }
+
+  static Future<ProductModel> publishProduct(
+    String storeId,
+    String productId,
+  ) async {
+    await hydrate();
+    final existing = getById(productId);
+    if (existing == null || existing.storeId != storeId) {
+      throw StateError('Producto no encontrado');
+    }
+    final body = CatalogProductJson.toUpsertBody(
+      existing,
+      storeId: storeId,
+      published: true,
+    );
+    await MarketService.putStoreProduct(
+      storeId: storeId,
+      productId: productId,
+      body: body,
+    );
+    await refreshFromServer(storeId);
+    return getById(productId) ?? existing.copyWith(published: true);
   }
 
   static Future<void> deleteProduct(String id) async {
     await hydrate();
     final removed = getById(id);
-    productsNotifier.value = productsNotifier.value
-        .where((product) => product.id != id)
-        .toList(growable: false);
-    await _persist();
-    if (removed != null) {
+    final sid = removed?.storeId.trim() ?? '';
+    if (removed != null && sid.isNotEmpty) {
+      await MarketService.deleteStoreProduct(storeId: sid, productId: id);
+      await refreshFromServer(sid);
+    } else {
+      productsNotifier.value = productsNotifier.value
+          .where((product) => product.id != id)
+          .toList(growable: false);
+      await _persist();
+    }
+
+    if (removed != null && removed.storeId.isNotEmpty) {
       await _syncStoreCount(removed.storeId);
     }
   }
 
   static Future<void> deleteAllForStore(String storeId) async {
     await hydrate();
-    productsNotifier.value = productsNotifier.value
-        .where((product) => product.storeId != storeId)
-        .toList(growable: false);
+    final ours =
+        productsNotifier.value
+            .where((p) => p.storeId == storeId)
+            .toList();
+    for (final p in ours) {
+      try {
+        await MarketService.deleteStoreProduct(
+          storeId: storeId,
+          productId: p.id,
+        );
+      } catch (_) {
+        debugPrint('[ProductService] deleteAll omitido ${p.id}');
+      }
+    }
+    productsNotifier.value =
+        productsNotifier.value
+            .where((product) => product.storeId != storeId)
+            .toList(growable: false);
     await _persist();
     await _syncStoreCount(storeId);
   }
 
+  static bool _looksLikeLocalFilesystemPath(String path) {
+    final t = path.trim();
+    if (t.isEmpty ||
+        t.startsWith('http://') ||
+        t.startsWith('https://') ||
+        t.startsWith('/api/')) {
+      return false;
+    }
+    return true;
+  }
+
   static Future<void> _syncStoreCount(String storeId) async {
-    final count = productsNotifier.value
-        .where((product) => product.storeId == storeId)
-        .length;
+    final count =
+        productsNotifier.value.where((p) => p.storeId == storeId).length;
     if (StoreService.getById(storeId) == null) return;
     try {
       await StoreService.updateStore(storeId, productsCount: count);
-    } catch (_) {
-      // Si la tienda fue eliminada en paralelo, no propagamos el error.
-    }
+    } catch (_) {}
   }
 
   static Future<void> _persist() async {

@@ -89,6 +89,10 @@ class _ServiceFormState extends State<ServiceForm> {
   bool _loadingCategories = true;
   String? _categoriesError;
 
+  List<ProductCurrency> _availableCurrencies = const <ProductCurrency>[];
+  bool _loadingCurrencies = true;
+  String? _currenciesError;
+
   bool _saving = false;
 
   bool get _isEditing => widget.initialService != null;
@@ -135,6 +139,7 @@ class _ServiceFormState extends State<ServiceForm> {
     _imagePaths = List<String>.from(initial?.imagePaths ?? const <String>[]);
 
     _loadCategories();
+    _loadCurrencies();
   }
 
   @override
@@ -172,6 +177,32 @@ class _ServiceFormState extends State<ServiceForm> {
       setState(() {
         _categoriesError = error.toString().replaceFirst('Exception: ', '');
         _loadingCategories = false;
+      });
+    }
+  }
+
+  Future<void> _loadCurrencies() async {
+    setState(() {
+      _loadingCurrencies = true;
+      _currenciesError = null;
+    });
+    try {
+      final currencies = await MarketService.getCurrencies();
+      if (!mounted) return;
+      final merged = <ProductCurrency>[
+        ...currencies,
+        for (final c in _selectedCurrencies)
+          if (!currencies.contains(c)) c,
+      ];
+      setState(() {
+        _availableCurrencies = merged;
+        _loadingCurrencies = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _currenciesError = error.toString().replaceFirst('Exception: ', '');
+        _loadingCurrencies = false;
       });
     }
   }
@@ -248,8 +279,9 @@ class _ServiceFormState extends State<ServiceForm> {
     try {
       final ServiceModel result;
       if (_isEditing) {
-        result = await ServiceService.updateService(
+        result = await ServiceService.updateServiceViaApi(
           widget.initialService!.id,
+          storeId: widget.storeId,
           category: category,
           serviceType: serviceType,
           acceptedCurrencies: currencies,
@@ -267,7 +299,7 @@ class _ServiceFormState extends State<ServiceForm> {
           imagePaths: _imagePaths,
         );
       } else {
-        result = await ServiceService.createService(
+        result = await ServiceService.createServiceViaApi(
           storeId: widget.storeId,
           category: category,
           serviceType: serviceType,
@@ -294,7 +326,7 @@ class _ServiceFormState extends State<ServiceForm> {
           content: Text(
             _isEditing
                 ? 'Servicio "$serviceType" actualizado'
-                : 'Servicio "$serviceType" agregado',
+                : 'Guardado como borrador. Pulsa Publicar para mostrarlo en el mercado.',
           ),
         ),
       );
@@ -448,11 +480,57 @@ class _ServiceFormState extends State<ServiceForm> {
   }
 
   Widget _buildCurrencySelector() {
+    if (_loadingCurrencies) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Cargando monedas...',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_currenciesError != null) {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppTheme.errorSurface,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _currenciesError!,
+                style: TextStyle(fontSize: 12, color: AppTheme.errorColor),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _loadCurrencies,
+              icon: const Icon(Icons.refresh, size: 14),
+              label: const Text(
+                'Reintentar',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final currency in ProductCurrency.allValues)
+        for (final currency in _availableCurrencies)
           _buildCurrencyChip(currency),
       ],
     );
