@@ -8,6 +8,10 @@ import 'package:vibe_trade_v1/pages/public_offer_page.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
+import 'package:vibe_trade_v1/widgets/serviceConfiguration/service_image_placeholder.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_image_placeholder.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_website_link.dart';
 
 /// Vitrina publica de una tienda. Equivalente al `StorePage` del demo en React
 /// (vista de visitante / no-dueno): identidad de la tienda + catalogo
@@ -165,71 +169,92 @@ class _PublicStorePageState extends State<PublicStorePage> {
         catalog.products.where((p) => p.published).toList(growable: false);
     final pubServices =
         catalog.services.where((s) => s.published).toList(growable: false);
+    final isWide = ResponsiveLayout.isTablet(context);
+
+    final content = <Widget>[
+      _StoreHeader(badge: store, owner: data.owner),
+      const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: _IdentitySection(
+          badge: store,
+          pitch: catalog.pitch.isNotEmpty ? catalog.pitch : store.pitch,
+        ),
+      ),
+      if (store.location != null) ...[
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _LocationSection(location: store.location!),
+        ),
+      ],
+      const SizedBox(height: 18),
+      _SectionHeader(
+        icon: Icons.inventory_2_outlined,
+        title: 'Productos',
+        count: pubProducts.length,
+      ),
+      if (pubProducts.isEmpty)
+        const _EmptyHint(text: 'Esta tienda aun no publica productos.')
+      else ...[
+        for (final p in pubProducts)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _ProductTile(product: p, store: store),
+          ),
+      ],
+      const SizedBox(height: 18),
+      _SectionHeader(
+        icon: Icons.handyman_outlined,
+        title: 'Servicios',
+        count: pubServices.length,
+      ),
+      if (pubServices.isEmpty)
+        const _EmptyHint(text: 'Esta tienda aun no publica servicios.')
+      else ...[
+        for (final s in pubServices)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _ServiceTile(service: s, store: store),
+          ),
+      ],
+      if (catalog.emergents.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        _SectionHeader(
+          icon: Icons.alt_route_outlined,
+          title: 'Hojas de ruta',
+          count: catalog.emergents.length,
+        ),
+        for (final e in catalog.emergents)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _EmergentTile(offer: e, store: store),
+          ),
+      ],
+    ];
+
+    if (isWide) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: content,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
       physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        _StoreHeader(badge: store, owner: data.owner),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _IdentitySection(
-            badge: store,
-            pitch: catalog.pitch.isNotEmpty ? catalog.pitch : store.pitch,
-          ),
-        ),
-        if (store.location != null) ...[
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _LocationSection(location: store.location!),
-          ),
-        ],
-        const SizedBox(height: 18),
-        _SectionHeader(
-          icon: Icons.inventory_2_outlined,
-          title: 'Productos',
-          count: pubProducts.length,
-        ),
-        if (pubProducts.isEmpty)
-          const _EmptyHint(text: 'Esta tienda aun no publica productos.')
-        else ...[
-          for (final p in pubProducts)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: _ProductTile(product: p, store: store),
-            ),
-        ],
-        const SizedBox(height: 18),
-        _SectionHeader(
-          icon: Icons.handyman_outlined,
-          title: 'Servicios',
-          count: pubServices.length,
-        ),
-        if (pubServices.isEmpty)
-          const _EmptyHint(text: 'Esta tienda aun no publica servicios.')
-        else ...[
-          for (final s in pubServices)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: _ServiceTile(service: s, store: store),
-            ),
-        ],
-        if (catalog.emergents.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          _SectionHeader(
-            icon: Icons.alt_route_outlined,
-            title: 'Hojas de ruta',
-            count: catalog.emergents.length,
-          ),
-          for (final e in catalog.emergents)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: _EmergentTile(offer: e, store: store),
-            ),
-        ],
-      ],
+      children: content,
     );
   }
 }
@@ -277,9 +302,9 @@ class _StoreHeader extends StatelessWidget {
                   ? Image.network(
                       logo,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _fallback(title),
+                      errorBuilder: (_, __, ___) => _storePlaceholder(),
                     )
-                  : _fallback(title),
+                  : _storePlaceholder(),
             ),
           ),
           const SizedBox(width: 12),
@@ -341,28 +366,12 @@ class _StoreHeader extends StatelessWidget {
     );
   }
 
-  Widget _fallback(String title) {
-    final letter = title.trim().isNotEmpty ? title.trim()[0].toUpperCase() : 'T';
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withValues(alpha: 0.85),
-            AppTheme.primaryColor.withValues(alpha: 0.45),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+  Widget _storePlaceholder() {
+    return const StoreImagePlaceholder(
+      width: 72,
+      height: 72,
+      iconSize: 36,
+      borderRadius: BorderRadius.zero,
     );
   }
 }
@@ -485,22 +494,7 @@ class _IdentitySection extends StatelessWidget {
     }
     if (web.isNotEmpty) {
       if (children.isNotEmpty) children.add(const SizedBox(height: 10));
-      children.add(Row(
-        children: [
-          Icon(Icons.public, size: 14, color: AppTheme.textMuted),
-          const SizedBox(width: 6),
-          Expanded(
-            child: SelectableText(
-              web,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ));
+      children.add(StoreWebsiteLink(url: web, showIcon: true));
     }
 
     if (children.isEmpty) return const SizedBox.shrink();
@@ -760,7 +754,28 @@ class _ServiceTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Thumb(url: imageUrl, fallbackIcon: Icons.handyman_outlined),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child:
+                      imageUrl != null && imageUrl!.isNotEmpty
+                          ? Image.network(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) => const ServiceImagePlaceholder(
+                                  iconSize: 28,
+                                  borderRadius: BorderRadius.zero,
+                                ),
+                          )
+                          : const ServiceImagePlaceholder(
+                            iconSize: 28,
+                            borderRadius: BorderRadius.zero,
+                          ),
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

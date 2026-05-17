@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibe_trade_v1/catalog/catalog_product_json.dart';
@@ -9,6 +7,7 @@ import 'package:vibe_trade_v1/models/product_model.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
+import 'package:vibe_trade_v1/utils/catalog_id.dart';
 
 /// Catálogo de productos sincronizado con
 /// `POST /Market/stores/{id}/detail` y `PUT/DELETE …/products/…`.
@@ -94,7 +93,11 @@ class ProductService {
       ...acceptedCurrencies,
     }.toList(growable: false);
 
-    final productId = _generateId();
+    if (pendingImageFile == null) {
+      throw StateError('Se requiere al menos una foto del producto.');
+    }
+
+    final productId = generateCatalogId('prd');
     var draft = ProductModel(
       id: productId,
       storeId: storeId,
@@ -121,17 +124,14 @@ class ProductService {
       published: false,
     );
 
-    var urls = const <String>[];
-    if (pendingImageFile != null) {
-      final url = await MediaService.uploadAvatar(pendingImageFile);
-      urls = [url];
-      draft = draft.copyWith(imagePath: url, photoUrls: urls);
-    }
+    final url = await MediaService.uploadAvatar(pendingImageFile);
+    final urls = [url];
+    draft = draft.copyWith(imagePath: url, photoUrls: urls);
 
     final body = CatalogProductJson.toUpsertBody(
       draft,
       storeId: storeId,
-      photoUrls: urls.isNotEmpty ? urls : null,
+      photoUrls: urls,
       published: false,
     );
 
@@ -207,17 +207,21 @@ class ProductService {
       } catch (_) {}
     }
 
-    var photoUrls = List<String>.from(next.photoUrls);
+    var photoUrls = _resolveProductPhotoUrls(next);
     if (uploadCandidate != null) {
       final u = await MediaService.uploadAvatar(uploadCandidate);
       photoUrls = [u];
       next = next.copyWith(imagePath: u, photoUrls: photoUrls);
     }
 
+    if (photoUrls.isEmpty) {
+      throw StateError('Se requiere al menos una foto del producto.');
+    }
+
     final body = CatalogProductJson.toUpsertBody(
       next,
       storeId: storeId,
-      photoUrls: photoUrls.isNotEmpty ? photoUrls : null,
+      photoUrls: photoUrls,
       published: existing.published,
     );
 
@@ -239,9 +243,16 @@ class ProductService {
     if (existing == null || existing.storeId != storeId) {
       throw StateError('Producto no encontrado');
     }
+    final photoUrls = _resolveProductPhotoUrls(existing);
+    if (photoUrls.isEmpty) {
+      throw StateError(
+        'No se puede publicar un producto sin imagen en la ficha.',
+      );
+    }
     final body = CatalogProductJson.toUpsertBody(
       existing,
       storeId: storeId,
+      photoUrls: photoUrls,
       published: true,
     );
     await MarketService.putStoreProduct(
@@ -338,10 +349,20 @@ class ProductService {
     }
   }
 
-  static String _generateId() {
-    final timestamp = DateTime.now().microsecondsSinceEpoch;
-    final random = Random().nextInt(0xFFFF);
-    return '$timestamp-${random.toRadixString(16)}';
+  static List<String> _resolveProductPhotoUrls(ProductModel p) {
+    final fromList =
+        p.photoUrls.map((u) => u.trim()).where((u) => u.isNotEmpty).toList();
+    if (fromList.isNotEmpty) {
+      return fromList
+          .where((u) => isCatalogMediaUrl(u) || File(u).existsSync())
+          .toList(growable: false);
+    }
+    final single = p.imagePath.trim();
+    if (single.isEmpty) return const <String>[];
+    if (isCatalogMediaUrl(single) || File(single).existsSync()) {
+      return [single];
+    }
+    return const <String>[];
   }
 }
 

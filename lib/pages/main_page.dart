@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/pages/catalog_search_page.dart';
 import 'package:vibe_trade_v1/pages/chat_page.dart';
 import 'package:vibe_trade_v1/pages/home_page.dart';
+import 'package:vibe_trade_v1/pages/notifications_page.dart';
 import 'package:vibe_trade_v1/pages/profile_page.dart';
 import 'package:vibe_trade_v1/pages/reels_page.dart';
 import 'package:vibe_trade_v1/services/auth_service.dart';
 import 'package:vibe_trade_v1/services/main_tab_bus.dart';
+import 'package:vibe_trade_v1/services/notifications_service.dart';
 import 'package:vibe_trade_v1/services/saved_offers_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
@@ -70,8 +72,10 @@ class _MainPageState extends State<MainPage> {
     if (isLoggedIn) {
       unawaited(StoreService.refreshStoresFromWorkspace());
       unawaited(SavedOffersService.hydrateFromServer());
+      unawaited(_refreshNotificationsSilently());
     } else {
       SavedOffersService.clear();
+      NotificationsService.clear();
     }
   }
 
@@ -91,8 +95,10 @@ class _MainPageState extends State<MainPage> {
     if (isLoggedIn) {
       unawaited(StoreService.refreshStoresFromWorkspace());
       unawaited(SavedOffersService.hydrateFromServer());
+      unawaited(_refreshNotificationsSilently());
     } else {
       SavedOffersService.clear();
+      NotificationsService.clear();
     }
 
     if (wasLoggedIn && !isLoggedIn) {
@@ -118,6 +124,14 @@ class _MainPageState extends State<MainPage> {
       return;
     }
     setState(() {});
+  }
+
+  Future<void> _refreshNotificationsSilently() async {
+    try {
+      await NotificationsService.fetchNotifications();
+    } catch (_) {
+      // Offline/401 transient errors should not block app startup.
+    }
   }
 
   @override
@@ -188,9 +202,56 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _showNotifications() {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notificaciones proximamente')),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const NotificationsPage(),
+      ),
+    );
+  }
+
+  Widget _notificationButton() {
+    return ValueListenableBuilder(
+      valueListenable: NotificationsService.itemsNotifier,
+      builder: (context, _, __) {
+        final unread = NotificationsService.unreadCount;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              tooltip: 'Notificaciones',
+              onPressed: _showNotifications,
+              icon: Icon(
+                Icons.notifications_none_outlined,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            if (unread > 0)
+              Positioned(
+                right: 5,
+                top: 5,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorColor,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppTheme.appBgColor, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    unread > 99 ? '99+' : '$unread',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -209,14 +270,7 @@ class _MainPageState extends State<MainPage> {
   List<Widget> _homeAppBarActions() {
     if (_isLoged) {
       return [
-        IconButton(
-          tooltip: 'Notificaciones',
-          onPressed: _showNotifications,
-          icon: Icon(
-            Icons.notifications_none_outlined,
-            color: AppTheme.textPrimary,
-          ),
-        ),
+        _notificationButton(),
       ];
     }
     return [
@@ -471,14 +525,15 @@ class _MainPageState extends State<MainPage> {
               bottom: BorderSide(color: AppTheme.dividerColor, width: 1),
             ),
             automaticallyImplyLeading: false,
+            centerTitle: false,
             titleSpacing: 12,
-            title: _isLoged
-                ? TrustAppBarActions(
-                    isLoggedIn: true,
-                    onNotificationsTap: _showNotifications,
-                  )
-                : null,
+            title: _isLoged ? const _MobileGreetingTitle() : null,
             actions: [
+              if (_isLoged)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _notificationButton(),
+                ),
               if (!_isLoged)
                 Padding(
                   padding: const EdgeInsets.only(right: 10.0),
@@ -550,6 +605,65 @@ class _MainNavItem {
   final IconData icon;
 
   const _MainNavItem({required this.label, required this.icon});
+}
+
+class _MobileGreetingTitle extends StatelessWidget {
+  const _MobileGreetingTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: AuthService.currentUserNotifier,
+      builder: (context, user, _) {
+        final name = (user?.name ?? '').trim();
+        final firstName = name.isEmpty ? 'Usuario' : name.split(' ').first;
+        return Row(
+          children: [
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: AppTheme.primaryColor,
+              child: Text(
+                firstName[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hola,',
+                    style: TextStyle(
+                      color: AppTheme.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      height: 1.1,
+                    ),
+                  ),
+                  Text(
+                    firstName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 /// Cabecera de Home en escritorio: titulo "Ofertas", caja "Buscar" clickable

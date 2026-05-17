@@ -3,6 +3,7 @@ import 'package:vibe_trade_v1/models/offer_model.dart';
 import 'package:vibe_trade_v1/services/chat_service.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
+import 'package:vibe_trade_v1/utils/image_upload_limits.dart';
 import 'package:vibe_trade_v1/utils/tool_placeholder_url.dart';
 
 enum CatalogItemKind { product, service, unknown }
@@ -69,6 +70,7 @@ Future<String?> _publicImageUrlToMediaRef(String publicUrl, int i) async {
     if (res.statusCode < 200 || res.statusCode >= 300) return null;
     final bytes = res.bodyBytes;
     if (bytes.isEmpty) return null;
+    if (imageBytesSizeError(bytes) != null) return null;
     var ext = 'jpg';
     final ct = res.headers['content-type'] ?? '';
     if (ct.contains('png')) {

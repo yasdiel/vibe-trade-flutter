@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:vibe_trade_v1/models/store_badge_model.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_image_placeholder.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_website_link.dart';
 
 /// Ficha publica al abrir una tienda desde recomendaciones.
 ///
@@ -61,10 +63,15 @@ class PublicRecommendedStorePage extends StatelessWidget {
                   ? Image.network(
                       resolved,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          _PhotoFallback(initial: title),
+                      errorBuilder: (_, __, ___) => const StoreImagePlaceholder(
+                        iconSize: 56,
+                        borderRadius: BorderRadius.zero,
+                      ),
                     )
-                  : _PhotoFallback(initial: title),
+                  : const StoreImagePlaceholder(
+                      iconSize: 56,
+                      borderRadius: BorderRadius.zero,
+                    ),
             ),
           ),
           const SizedBox(height: 14),
@@ -276,14 +283,7 @@ class PublicRecommendedStorePage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            SelectableText(
-              badge.websiteUrl,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            StoreWebsiteLink(url: badge.websiteUrl, fontSize: 14),
           ],
         ],
       ),
@@ -325,40 +325,6 @@ class _MetaChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PhotoFallback extends StatelessWidget {
-  final String initial;
-
-  const _PhotoFallback({required this.initial});
-
-  @override
-  Widget build(BuildContext context) {
-    final letter = initial.trim().isNotEmpty ? initial.trim()[0].toUpperCase() : 'T';
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withValues(alpha: 0.85),
-            AppTheme.primaryColor.withValues(alpha: 0.45),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.95),
-          fontSize: 56,
-          fontWeight: FontWeight.w900,
-          height: 1,
-        ),
       ),
     );
   }

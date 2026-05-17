@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/models/service_model.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/serviceConfiguration/service_image_placeholder.dart';
 
 class ServiceCard extends StatelessWidget {
   final ServiceModel service;
@@ -35,27 +36,8 @@ class ServiceCard extends StatelessWidget {
     return null;
   }
 
-  Widget _fallbackGradient(String serviceType) {
-    final letter =
-        serviceType.isNotEmpty ? serviceType[0].toUpperCase() : 'S';
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF22C55E), Color(0xFF14B8A6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 36,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
+  Widget _fallbackPlaceholder() {
+    return const ServiceImagePlaceholder(iconSize: 40);
   }
 
   Widget _galleryBadge() {
@@ -94,7 +76,6 @@ class ServiceCard extends StatelessWidget {
 
   Widget _buildImage() {
     final path = _firstDisplayPath();
-    final stype = service.serviceType.trim();
 
     if (path != null &&
         (path.startsWith('http://') ||
@@ -107,7 +88,7 @@ class ServiceCard extends StatelessWidget {
           Image.network(
             url,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _fallbackGradient(stype),
+            errorBuilder: (_, __, ___) => _fallbackPlaceholder(),
           ),
           _galleryBadge(),
         ],
@@ -123,7 +104,7 @@ class ServiceCard extends StatelessWidget {
       );
     }
 
-    return _fallbackGradient(stype);
+    return _fallbackPlaceholder();
   }
 
   Widget _buildBadge({

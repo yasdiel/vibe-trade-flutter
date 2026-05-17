@@ -5,6 +5,8 @@ import 'package:vibe_trade_v1/services/market_service.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/utils/modal_feedback.dart';
+import 'package:vibe_trade_v1/widgets/modal_form_dialog.dart';
 import 'package:vibe_trade_v1/widgets/modal_subtitle.dart';
 import 'package:vibe_trade_v1/widgets/modal_title.dart';
 import 'package:vibe_trade_v1/widgets/storeConfiguration/location_picker_screen.dart';
@@ -15,34 +17,9 @@ Future<StoreModel?> showNewStoreModal(
   BuildContext context, {
   StoreModel? initialStore,
 }) {
-  return showDialog<StoreModel>(
+  return showModalFormDialog<StoreModel>(
     context: context,
-    builder: (context) {
-      final size = MediaQuery.of(context).size;
-      final isWide = size.width >= 720;
-      return Dialog(
-        backgroundColor: AppTheme.foregroundColor,
-        elevation: 8,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        insetPadding: isWide
-            ? const EdgeInsets.symmetric(horizontal: 40, vertical: 24)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isWide ? 540 : double.infinity,
-            maxHeight: size.height * 0.92,
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(isWide ? 22 : 18),
-            child: SingleChildScrollView(
-              child: NewStoreForm(initialStore: initialStore),
-            ),
-          ),
-        ),
-      );
-    },
+    child: NewStoreForm(initialStore: initialStore),
   );
 }
 
@@ -271,12 +248,7 @@ class _NewStoreFormState extends State<NewStoreForm> {
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
-    );
-  }
+  void _showError(String message) => showModalError(context, message);
 
   InputDecoration _inputDecoration({String? hint}) {
     return InputDecoration(

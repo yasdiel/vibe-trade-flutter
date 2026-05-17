@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibe_trade_v1/catalog/catalog_service_json.dart';
@@ -10,6 +8,7 @@ import 'package:vibe_trade_v1/models/service_model.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
+import 'package:vibe_trade_v1/utils/catalog_id.dart';
 
 /// Catálogo de servicios contra `POST …/stores/{id}/detail` y `PUT/DELETE …/services/…`.
 class ServiceService {
@@ -68,22 +67,24 @@ class ServiceService {
   }
 
   static Future<List<String>> _uploadResolvedPaths(List<String> paths) async {
+    final limited = paths
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .take(1)
+        .toList(growable: false);
+    if (limited.isEmpty) return const <String>[];
+
     final out = <String>[];
-    for (final p in paths) {
-      final t = p.trim();
-      if (t.isEmpty) continue;
-      if (t.startsWith('http://') ||
-          t.startsWith('https://') ||
-          t.startsWith('/api/')) {
+    for (final t in limited) {
+      if (isCatalogMediaUrl(t)) {
         out.add(t);
         continue;
       }
-      try {
-        final f = File(t);
-        if (f.existsSync()) {
-          out.add(await MediaService.uploadAvatar(f));
-        }
-      } catch (_) {}
+      final f = File(t);
+      if (!f.existsSync()) {
+        throw StateError('No se encontró el archivo de imagen seleccionado.');
+      }
+      out.add(await MediaService.uploadAvatar(f));
     }
     return out;
   }
@@ -107,13 +108,16 @@ class ServiceService {
     required List<String> imagePaths,
   }) async {
     await hydrate();
-    final id = _generateId();
-    final uploaded = await _uploadResolvedPaths(imagePaths);
-    final urls = List<String>.unmodifiable(uploaded);
-
-    if (urls.isEmpty) {
-      throw StateError('Se requiere al menos una foto subida.');
+    if (imagePaths.length > 1) {
+      throw StateError('El servicio solo puede tener una imagen.');
     }
+
+    final id = generateCatalogId('svc');
+    final uploaded =
+        imagePaths.isNotEmpty
+            ? await _uploadResolvedPaths(imagePaths)
+            : const <String>[];
+    final urls = List<String>.unmodifiable(uploaded);
 
     final draft = ServiceModel(
       id: id,
@@ -182,10 +186,13 @@ class ServiceService {
 
     List<String>? newPaths;
     if (imagePaths != null) {
-      newPaths = await _uploadResolvedPaths(imagePaths);
-      if (newPaths.isEmpty) {
-        throw StateError('Sin fotos válidas después de procesar rutas locales.');
+      if (imagePaths.length > 1) {
+        throw StateError('El servicio solo puede tener una imagen.');
       }
+      newPaths =
+          imagePaths.isNotEmpty
+              ? await _uploadResolvedPaths(imagePaths)
+              : const <String>[];
     }
 
     final next = existing.copyWith(
@@ -325,9 +332,11 @@ class ServiceService {
     }
   }
 
-  static String _generateId() {
-    final timestamp = DateTime.now().microsecondsSinceEpoch;
-    final random = Random().nextInt(0xFFFF);
-    return '$timestamp-${random.toRadixString(16)}';
+  static List<String> _resolveServicePhotoUrls(ServiceModel s) {
+    return s.imagePaths
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty && isCatalogMediaUrl(p))
+        .take(1)
+        .toList(growable: false);
   }
 }

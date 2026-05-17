@@ -6,9 +6,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:vibe_trade_v1/models/store_model.dart';
 import 'package:vibe_trade_v1/pages/products_page.dart';
 import 'package:vibe_trade_v1/pages/services_page.dart';
+import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/utils/catalog_id.dart';
 import 'package:vibe_trade_v1/widgets/storeConfiguration/new_store_modal.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_image_placeholder.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_website_link.dart';
 
 class StoreDetailPage extends StatelessWidget {
   final String storeId;
@@ -158,7 +162,10 @@ class StoreDetailPage extends StatelessWidget {
                       _InfoRow(
                         icon: Icons.public_outlined,
                         label: 'Sitio web',
-                        value: store.website,
+                        trailing: StoreWebsiteLink(
+                          url: store.website,
+                          textAlign: TextAlign.end,
+                        ),
                       ),
                     _InfoRow(
                       icon: store.isVerified
@@ -479,7 +486,17 @@ class _StoreHero extends StatelessWidget {
   const _StoreHero({required this.store});
 
   Widget _buildImage() {
-    final path = store.imagePath;
+    final path = store.imagePath.trim();
+
+    if (path.isNotEmpty && isCatalogMediaUrl(path)) {
+      return Image.network(
+        MediaService.resolveMediaUrl(path),
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackHero(),
+      );
+    }
     if (path.isNotEmpty && File(path).existsSync()) {
       return Image.file(
         File(path),
@@ -488,28 +505,15 @@ class _StoreHero extends StatelessWidget {
         fit: BoxFit.cover,
       );
     }
-    final letter = store.name.trim().isNotEmpty
-        ? store.name.trim()[0].toUpperCase()
-        : 'T';
-    return Container(
+    return _fallbackHero();
+  }
+
+  Widget _fallbackHero() {
+    return const StoreImagePlaceholder(
       height: 180,
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 72,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      iconSize: 64,
+      borderRadius: BorderRadius.zero,
     );
   }
 
@@ -652,15 +656,17 @@ class _InfoCard extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
+  final String? value;
+  final Widget? trailing;
   final Color? valueColor;
 
   const _InfoRow({
     required this.icon,
     required this.label,
-    required this.value,
+    this.value,
+    this.trailing,
     this.valueColor,
-  });
+  }) : assert(value != null || trailing != null);
 
   @override
   Widget build(BuildContext context) {
@@ -677,15 +683,17 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
           Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 13,
-                color: valueColor ?? AppTheme.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            child:
+                trailing ??
+                Text(
+                  value!,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: valueColor ?? AppTheme.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
           ),
         ],
       ),

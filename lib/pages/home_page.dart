@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/models/offer_model.dart';
 import 'package:vibe_trade_v1/models/recommendations_response.dart';
 import 'package:vibe_trade_v1/pages/public_offer_page.dart';
-import 'package:vibe_trade_v1/pages/public_recommended_store_page.dart';
+import 'package:vibe_trade_v1/pages/public_store_page.dart';
 import 'package:vibe_trade_v1/services/auth_exceptions.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
@@ -172,7 +172,10 @@ class _HomePageState extends State<HomePage> {
     if (badge == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PublicRecommendedStorePage(badge: badge),
+        builder: (_) => PublicStorePage(
+          storeId: storeId,
+          initialBadge: badge,
+        ),
       ),
     );
   }

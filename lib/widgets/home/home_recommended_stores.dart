@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/models/store_badge_model.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_image_placeholder.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_website_link.dart';
 
 /// Tiendas recomendadas: orden derivado del ranking actual de `offerIds` (+ `storeBadges`).
 /// Los badges siguen [`MarketCatalogStoreBadgeJson`] del backend (.NET).
@@ -245,24 +247,11 @@ class _RecommendedStoreTile extends StatelessWidget {
                     ],
                     if (badge.websiteUrl.trim().isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.language,
-                              size: 14, color: AppTheme.textMuted),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              badge.websiteUrl,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.primaryColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
+                      StoreWebsiteLink(
+                        url: badge.websiteUrl,
+                        maxLines: 1,
+                        fontSize: 11,
+                        showIcon: true,
                       ),
                     ],
                   ],
@@ -316,14 +305,11 @@ class _StoreAvatar extends StatelessWidget {
   }
 
   Widget _fallback() {
-    return Container(
-      color: AppTheme.surfaceMutedColor,
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.storefront_outlined,
-        size: 22,
-        color: AppTheme.textSecondary,
-      ),
+    return const StoreImagePlaceholder(
+      width: 44,
+      height: 44,
+      iconSize: 22,
+      borderRadius: BorderRadius.zero,
     );
   }
 }

@@ -3,6 +3,9 @@ import 'package:vibe_trade_v1/models/offer_model.dart';
 import 'package:vibe_trade_v1/models/store_badge_model.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/utils/tool_placeholder_url.dart';
+import 'package:vibe_trade_v1/widgets/serviceConfiguration/service_image_placeholder.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_image_placeholder.dart';
 
 class OfferCard extends StatelessWidget {
   final OfferModel offer;
@@ -26,14 +29,13 @@ class OfferCard extends StatelessWidget {
   });
 
   String? get _resolvedImageUrl {
-    final candidates = <String?>[
-      offer.imageUrl,
-      if (offer.imageUrls.isNotEmpty) offer.imageUrls.first,
+    final candidates = <String>[
+      if (offer.imageUrl != null) offer.imageUrl!,
+      ...offer.imageUrls,
     ];
     for (final raw in candidates) {
-      if (raw == null) continue;
       final trimmed = raw.trim();
-      if (trimmed.isEmpty) continue;
+      if (trimmed.isEmpty || isToolPlaceholderUrl(trimmed)) continue;
       return MediaService.resolveMediaUrl(trimmed);
     }
     return null;
@@ -65,9 +67,6 @@ class OfferCard extends StatelessWidget {
         children: [
               _OfferImage(
                 imageUrl: _resolvedImageUrl,
-                fallbackLetter: offer.title.trim().isNotEmpty
-                    ? offer.title.trim()[0].toUpperCase()
-                    : 'O',
                 isService: offer.isService,
                 liked:
                     showInteractions && offer.viewerLikedOffer,
@@ -139,13 +138,11 @@ class OfferCard extends StatelessWidget {
 
 class _OfferImage extends StatelessWidget {
   final String? imageUrl;
-  final String fallbackLetter;
   final bool isService;
   final bool liked;
 
   const _OfferImage({
     required this.imageUrl,
-    required this.fallbackLetter,
     required this.isService,
     required this.liked,
   });
@@ -204,24 +201,22 @@ class _OfferImage extends StatelessWidget {
   }
 
   Widget _buildFallback() {
+    if (isService) {
+      return const ServiceImagePlaceholder(iconSize: 48);
+    }
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: isService
-              ? const [Color(0xFF22C55E), Color(0xFF14B8A6)]
-              : const [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
+          colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
       alignment: Alignment.center,
-      child: Text(
-        fallbackLetter,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 36,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Icon(
+        Icons.shopping_bag_outlined,
+        size: 48,
+        color: Colors.white.withValues(alpha: 0.85),
       ),
     );
   }
@@ -434,20 +429,11 @@ class _StoreLogoChip extends StatelessWidget {
   }
 
   Widget _fallbackIcon() {
-    return Container(
+    return const StoreImagePlaceholder(
       width: _size,
       height: _size,
-      decoration: BoxDecoration(
-        color: AppTheme.foregroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.dividerColor),
-      ),
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.storefront_outlined,
-        size: 18,
-        color: AppTheme.textSecondary,
-      ),
+      iconSize: 18,
+      borderRadius: BorderRadius.all(Radius.circular(8)),
     );
   }
 }

@@ -5,47 +5,28 @@ import 'package:image_picker/image_picker.dart';
 import 'package:vibe_trade_v1/models/product_model.dart';
 import 'package:vibe_trade_v1/models/service_model.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
+import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/service_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/utils/catalog_id.dart';
+import 'package:vibe_trade_v1/utils/image_upload_limits.dart';
+import 'package:vibe_trade_v1/utils/modal_feedback.dart';
+import 'package:vibe_trade_v1/widgets/modal_form_dialog.dart';
 import 'package:vibe_trade_v1/widgets/modal_subtitle.dart';
 import 'package:vibe_trade_v1/widgets/modal_title.dart';
+import 'package:vibe_trade_v1/widgets/serviceConfiguration/service_image_placeholder.dart';
 
 Future<ServiceModel?> showServiceModal(
   BuildContext context, {
   required String storeId,
   ServiceModel? initialService,
 }) {
-  return showDialog<ServiceModel>(
+  return showModalFormDialog<ServiceModel>(
     context: context,
-    builder: (context) {
-      final size = MediaQuery.of(context).size;
-      final isWide = size.width >= 720;
-      return Dialog(
-        backgroundColor: AppTheme.foregroundColor,
-        elevation: 8,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        insetPadding: isWide
-            ? const EdgeInsets.symmetric(horizontal: 40, vertical: 24)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isWide ? 540 : double.infinity,
-            maxHeight: size.height * 0.92,
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(isWide ? 22 : 18),
-            child: SingleChildScrollView(
-              child: ServiceForm(
-                storeId: storeId,
-                initialService: initialService,
-              ),
-            ),
-          ),
-        ),
-      );
-    },
+    child: ServiceForm(
+      storeId: storeId,
+      initialService: initialService,
+    ),
   );
 }
 
@@ -208,14 +189,15 @@ class _ServiceFormState extends State<ServiceForm> {
   }
 
   Future<void> _addImages() async {
-    final picked = await _picker.pickMultiImage();
-    if (picked.isEmpty) return;
-    setState(() {
-      _imagePaths = <String>[
-        ..._imagePaths,
-        for (final file in picked) file.path,
-      ];
-    });
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+    final file = File(picked.path);
+    final sizeError = await imageFileSizeError(file);
+    if (sizeError != null) {
+      _showError(sizeError);
+      return;
+    }
+    setState(() => _imagePaths = <String>[picked.path]);
   }
 
   void _removeImage(int index) {
@@ -267,8 +249,8 @@ class _ServiceFormState extends State<ServiceForm> {
       _showError('Describe las garantias del servicio');
       return;
     }
-    if (_imagePaths.isEmpty) {
-      _showError('Agrega al menos una foto del servicio');
+    if (_imagePaths.length > 1) {
+      _showError('El servicio solo puede tener una imagen.');
       return;
     }
 
@@ -338,12 +320,7 @@ class _ServiceFormState extends State<ServiceForm> {
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
-    );
-  }
+  void _showError(String message) => showModalError(context, message);
 
   InputDecoration _inputDecoration({String? hint, Widget? prefix}) {
     return InputDecoration(
@@ -654,70 +631,52 @@ class _ServiceFormState extends State<ServiceForm> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_imagePaths.isNotEmpty)
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (var i = 0; i < _imagePaths.length; i++)
-                _buildThumbnail(i),
-              _buildAddTile(),
+              _buildThumbnail(0),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: _saving ? null : _addImages,
+                icon: const Icon(Icons.swap_horiz, size: 16),
+                label: const Text('Cambiar foto'),
+              ),
             ],
           )
         else
           InkWell(
             onTap: _saving ? null : _addImages,
             borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: double.infinity,
-              height: 130,
+            child: Stack(
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppTheme.selectedColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                  style: BorderStyle.solid,
+              children: [
+                const ServiceImagePlaceholder(
+                  width: double.infinity,
+                  height: 130,
+                  iconSize: 44,
                 ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.add_a_photo_outlined,
-                    size: 30,
-                    color: AppTheme.primaryColor,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Agregar fotos del servicio',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryColor,
+                Positioned(
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'Toca para agregar foto (opcional)',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Minimo 1 foto. Puedes elegir varias a la vez.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        if (_imagePaths.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              '${_imagePaths.length} ${_imagePaths.length == 1 ? "foto agregada" : "fotos agregadas"}',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+                ),
+              ],
             ),
           ),
       ],
@@ -726,27 +685,32 @@ class _ServiceFormState extends State<ServiceForm> {
 
   Widget _buildThumbnail(int index) {
     final path = _imagePaths[index];
-    final exists = path.isNotEmpty && File(path).existsSync();
+    final isRemote = path.isNotEmpty && isCatalogMediaUrl(path);
+    final existsLocal = path.isNotEmpty && File(path).existsSync();
     return Stack(
       children: [
         Container(
-          width: 86,
-          height: 86,
+          width: double.infinity,
+          height: 140,
           decoration: BoxDecoration(
             color: AppTheme.inputFillColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppTheme.dividerColor),
           ),
           clipBehavior: Clip.antiAlias,
-          child: exists
-              ? Image.file(File(path), fit: BoxFit.cover)
-              : Center(
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    color: AppTheme.textMuted,
-                    size: 24,
+          child: isRemote
+              ? Image.network(
+                  MediaService.resolveMediaUrl(path),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 140,
+                  errorBuilder: (_, __, ___) => const ServiceImagePlaceholder(
+                    iconSize: 36,
                   ),
-                ),
+                )
+              : existsLocal
+              ? Image.file(File(path), fit: BoxFit.cover)
+              : const ServiceImagePlaceholder(iconSize: 36),
         ),
         Positioned(
           top: 2,
@@ -770,44 +734,6 @@ class _ServiceFormState extends State<ServiceForm> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildAddTile() {
-    return InkWell(
-      onTap: _saving ? null : _addImages,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 86,
-        height: 86,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppTheme.selectedColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_a_photo_outlined,
-              color: AppTheme.primaryColor,
-              size: 22,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Agregar',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -992,7 +918,7 @@ class _ServiceFormState extends State<ServiceForm> {
 
         _buildSectionHeader(
           icon: Icons.photo_library_outlined,
-          title: 'Fotos del servicio',
+          title: 'Foto del servicio (opcional)',
         ),
         const SizedBox(height: 10),
         _buildImagesGallery(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vibe_trade_v1/pages/main_page.dart';
+import 'package:vibe_trade_v1/pages/notifications_page.dart';
 import 'package:vibe_trade_v1/pages/signup_page.dart';
 import 'package:vibe_trade_v1/pages/signin_page.dart';
 import '../pages/splash_screen.dart';
@@ -12,5 +13,6 @@ Map<String, WidgetBuilder> getApplicationRoutes() {
     '/signin': (context) => SigninPage(),
     '/signup': (context) => SignUp(),
     '/home': (context) => MainPage(),
+    '/notifications': (context) => NotificationsPage(),
   };
 }

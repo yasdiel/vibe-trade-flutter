@@ -52,13 +52,10 @@ class HomeOffersAppBarBody extends StatelessWidget {
                   ),
                 ),
                 if (actions.isNotEmpty)
-                  Flexible(
-                    fit: FlexFit.loose,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: actions,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: actions,
                   ),
               ],
             ),

@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:vibe_trade_v1/config/env.dart';
 import 'package:vibe_trade_v1/services/api_response_utils.dart';
 import 'package:vibe_trade_v1/services/auth_exceptions.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
+import 'package:vibe_trade_v1/utils/image_upload_limits.dart';
 
 class MediaService {
   static String get _mediaBaseUrl => '$baseUrl/media';
@@ -55,9 +57,7 @@ class MediaService {
     required List<int> bytes,
     required String filename,
   }) async {
-    if (bytes.isEmpty) {
-      throw Exception('La imagen esta vacia.');
-    }
+    assertImageBytesUploadable(bytes);
     final token = await SessionService.getSavedToken();
     if (token == null) throw const UnauthorizedException();
 
@@ -65,7 +65,12 @@ class MediaService {
     request.headers['Authorization'] = SessionService.buildAuthorizationHeader(token);
     request.headers['Accept'] = 'application/json';
     request.files.add(
-      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: _imageMediaTypeForPath(filename),
+      ),
     );
 
     final streamedResponse = await request.send();
@@ -92,15 +97,20 @@ class MediaService {
   }
 
   static Future<void> _validateImageFile(File file) async {
-    if (!await file.exists()) throw Exception('El archivo de imagen no existe.');
-    if (await file.length() == 0) throw Exception('El archivo de imagen esta vacio.');
+    await assertImageFileUploadable(file);
   }
 
   static Future<http.Response> _postImage(File file, String token) async {
     final request = http.MultipartRequest('POST', Uri.parse(_mediaBaseUrl));
     request.headers['Authorization'] = SessionService.buildAuthorizationHeader(token);
     request.headers['Accept'] = 'application/json';
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        file.path,
+        contentType: _imageMediaTypeForPath(file.path),
+      ),
+    );
 
     final streamedResponse = await request.send();
     return http.Response.fromStream(streamedResponse);
@@ -128,6 +138,32 @@ class MediaService {
       if (id != null && id.isNotEmpty) return id;
     }
     return _findMediaId(value['data']);
+  }
+
+  static MediaType _imageMediaTypeForPath(String path) {
+    final ext = path.contains('.')
+        ? path.split('.').last.toLowerCase()
+        : '';
+    switch (ext) {
+      case 'png':
+        return MediaType('image', 'png');
+      case 'gif':
+        return MediaType('image', 'gif');
+      case 'webp':
+        return MediaType('image', 'webp');
+      case 'heic':
+        return MediaType('image', 'heic');
+      case 'heif':
+        return MediaType('image', 'heif');
+      case 'bmp':
+        return MediaType('image', 'bmp');
+      case 'avif':
+        return MediaType('image', 'avif');
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return MediaType('image', 'jpeg');
+    }
   }
 
   static String? _extractMediaIdFromLooseBody(String rawBody) {

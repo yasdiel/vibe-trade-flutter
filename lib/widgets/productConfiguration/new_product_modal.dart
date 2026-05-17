@@ -5,8 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:vibe_trade_v1/models/product_model.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
+import 'package:vibe_trade_v1/services/media_service.dart';
 import 'package:vibe_trade_v1/services/product_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/utils/catalog_id.dart';
+import 'package:vibe_trade_v1/utils/image_upload_limits.dart';
+import 'package:vibe_trade_v1/utils/modal_feedback.dart';
+import 'package:vibe_trade_v1/widgets/modal_form_dialog.dart';
 import 'package:vibe_trade_v1/widgets/modal_subtitle.dart';
 import 'package:vibe_trade_v1/widgets/modal_title.dart';
 
@@ -15,37 +20,12 @@ Future<ProductModel?> showProductModal(
   required String storeId,
   ProductModel? initialProduct,
 }) {
-  return showDialog<ProductModel>(
+  return showModalFormDialog<ProductModel>(
     context: context,
-    builder: (context) {
-      final size = MediaQuery.of(context).size;
-      final isWide = size.width >= 720;
-      return Dialog(
-        backgroundColor: AppTheme.foregroundColor,
-        elevation: 8,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        insetPadding: isWide
-            ? const EdgeInsets.symmetric(horizontal: 40, vertical: 24)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isWide ? 540 : double.infinity,
-            maxHeight: size.height * 0.92,
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(isWide ? 22 : 18),
-            child: SingleChildScrollView(
-              child: ProductForm(
-                storeId: storeId,
-                initialProduct: initialProduct,
-              ),
-            ),
-          ),
-        ),
-      );
-    },
+    child: ProductForm(
+      storeId: storeId,
+      initialProduct: initialProduct,
+    ),
   );
 }
 
@@ -95,6 +75,14 @@ class _ProductFormState extends State<ProductForm> {
   bool _saving = false;
 
   bool get _isEditing => widget.initialProduct != null;
+
+  bool get _hasRequiredImage {
+    if (_pendingImage != null) return true;
+    final saved = _savedImagePath.trim();
+    if (saved.isEmpty) return false;
+    if (isCatalogMediaUrl(saved)) return true;
+    return File(saved).existsSync();
+  }
 
   @override
   void initState() {
@@ -227,7 +215,13 @@ class _ProductFormState extends State<ProductForm> {
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
-    setState(() => _pendingImage = File(picked.path));
+    final file = File(picked.path);
+    final sizeError = await imageFileSizeError(file);
+    if (sizeError != null) {
+      _showError(sizeError);
+      return;
+    }
+    setState(() => _pendingImage = file);
   }
 
   void _clearPendingImage() {
@@ -289,6 +283,10 @@ class _ProductFormState extends State<ProductForm> {
     }
     if (currencies.isEmpty) {
       _showError('Selecciona al menos una moneda aceptada');
+      return;
+    }
+    if (!_hasRequiredImage) {
+      _showError('Sube al menos una foto del producto (obligatoria).');
       return;
     }
 
@@ -367,12 +365,7 @@ class _ProductFormState extends State<ProductForm> {
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
-    );
-  }
+  void _showError(String message) => showModalError(context, message);
 
   InputDecoration _inputDecoration({String? hint, Widget? prefix}) {
     return InputDecoration(
@@ -805,7 +798,10 @@ class _ProductFormState extends State<ProductForm> {
     final pending = _pendingImage;
     final savedPath = _savedImagePath;
     final hasPending = pending != null;
-    final hasSaved = savedPath.isNotEmpty && File(savedPath).existsSync();
+    final hasSavedLocal =
+        savedPath.isNotEmpty && File(savedPath).existsSync();
+    final hasSavedRemote =
+        savedPath.isNotEmpty && isCatalogMediaUrl(savedPath);
 
     Widget content;
     if (hasPending) {
@@ -815,7 +811,15 @@ class _ProductFormState extends State<ProductForm> {
         width: double.infinity,
         height: 140,
       );
-    } else if (hasSaved) {
+    } else if (hasSavedRemote) {
+      content = Image.network(
+        MediaService.resolveMediaUrl(savedPath),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 140,
+        errorBuilder: (_, __, ___) => _imagePlaceholder(),
+      );
+    } else if (hasSavedLocal) {
       content = Image.file(
         File(savedPath),
         fit: BoxFit.cover,
@@ -823,31 +827,7 @@ class _ProductFormState extends State<ProductForm> {
         height: 140,
       );
     } else {
-      content = Container(
-        height: 140,
-        width: double.infinity,
-        color: AppTheme.selectedColor,
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.image_outlined,
-              size: 32,
-              color: AppTheme.primaryColor.withValues(alpha: 0.6),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Sin imagen',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.primaryColor.withValues(alpha: 0.7),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
+      content = _imagePlaceholder();
     }
 
     return Stack(
@@ -881,7 +861,7 @@ class _ProductFormState extends State<ProductForm> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      hasPending || hasSaved ? 'Cambiar' : 'Elegir',
+                      _hasRequiredImage ? 'Cambiar' : 'Elegir',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.primaryColor,
@@ -933,7 +913,7 @@ class _ProductFormState extends State<ProductForm> {
               ),
             ),
           )
-        else if (hasSaved)
+        else if (_hasRequiredImage)
           Positioned(
             left: 8,
             bottom: 8,
@@ -976,6 +956,34 @@ class _ProductFormState extends State<ProductForm> {
     );
   }
 
+  Widget _imagePlaceholder() {
+    return Container(
+      height: 140,
+      width: double.infinity,
+      color: AppTheme.selectedColor,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image_outlined,
+            size: 32,
+            color: AppTheme.primaryColor.withValues(alpha: 0.6),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Sin imagen',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.primaryColor.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -993,7 +1001,7 @@ class _ProductFormState extends State<ProductForm> {
         ),
         const SizedBox(height: 16),
 
-        _label('Imagen'),
+        _label('Imagen', required: true),
         _buildImagePreview(),
         const SizedBox(height: 14),
 

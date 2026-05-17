@@ -6,6 +6,7 @@ import 'package:vibe_trade_v1/models/offer_model.dart';
 import 'package:vibe_trade_v1/models/store_badge_model.dart';
 import 'package:vibe_trade_v1/models/user_profile_model.dart';
 import 'package:vibe_trade_v1/pages/chat_thread_page.dart';
+import 'package:vibe_trade_v1/pages/offer/offer_comments_section.dart';
 import 'package:vibe_trade_v1/pages/public_store_page.dart';
 import 'package:vibe_trade_v1/services/auth_exceptions.dart';
 import 'package:vibe_trade_v1/services/chat_service.dart';
@@ -16,6 +17,9 @@ import 'package:vibe_trade_v1/services/recommendations_service.dart';
 import 'package:vibe_trade_v1/services/saved_offers_service.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
+import 'package:vibe_trade_v1/utils/tool_placeholder_url.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_image_placeholder.dart';
+import 'package:vibe_trade_v1/widgets/responsive_layout.dart';
 
 /// Detalle publico de una oferta. Equivalente al `OfferPage` del demo en React,
 /// hidratado desde `GET /Market/offers/{id}/card`.
@@ -147,8 +151,8 @@ class _PublicOfferPageState extends State<PublicOfferPage> {
 
   Future<void> _openComprarChatFlow(OfferModel offer, StoreBadgeModel store) async {
     final token = await SessionService.getSavedToken();
+    if (!mounted) return;
     if (token == null || token.isEmpty) {
-      if (!mounted) return;
       await Navigator.of(context).pushNamed('/signin');
       return;
     }
@@ -162,104 +166,109 @@ class _PublicOfferPageState extends State<PublicOfferPage> {
       _toast('No puedes chatear contigo mismo.');
       return;
     }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Iniciar chat con la tienda'),
+        content: SingleChildScrollView(
+          child: Text(_comprarConfirmMessage(offer)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Sí, abrir chat'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
     if (!mounted) return;
 
-    final navigatorContext = context;
-    await showDialog<void>(
+    await _runOpenComprarChat(offer, store);
+  }
+
+  Future<void> _runOpenComprarChat(
+    OfferModel offer,
+    StoreBadgeModel store,
+  ) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    showDialog<void>(
       context: context,
-      builder: (dialogContext) {
-        var busy = false;
-        return StatefulBuilder(
-          builder: (dialogSetContext, setLocal) {
-            return AlertDialog(
-              title: const Text('Iniciar chat con la tienda'),
-              content: SingleChildScrollView(
-                child: Text(_comprarConfirmMessage(offer)),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: busy ? null : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: busy
-                      ? null
-                      : () async {
-                          setLocal(() => busy = true);
-                          try {
-                            final dto = await ChatService.createOrGetChatThread(
-                              offerId: offer.catalogThreadOfferId,
-                              purchaseIntent: true,
-                              forceNew: true,
-                            );
-                            final threadId =
-                                (dto['id'] ?? dto['Id'])?.toString().trim() ?? '';
-                            if (!threadId.startsWith('cth_')) {
-                              if (dialogSetContext.mounted) {
-                                _toast('No se pudo abrir el chat. Prueba de nuevo.');
-                              }
-                              return;
-                            }
-                            try {
-                              await sendPurchaseInterestIntro(threadId, offer);
-                            } catch (_) {
-                              if (dialogSetContext.mounted) {
-                                _toast(
-                                  'El chat se abrió, pero el primer mensaje no pudo enviarse. Escribe desde el chat.',
-                                );
-                              }
-                            }
-                            unawaited(
-                              RecommendationsService.postInteraction(
-                                offerId: offer.id,
-                                eventType: 'chat_start',
-                              ),
-                            );
-                            if (dialogContext.mounted) {
-                              Navigator.of(dialogContext).pop();
-                            }
-                            if (!mounted) return;
-                            if (!navigatorContext.mounted) return;
-                            await Navigator.of(navigatorContext).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => ChatThreadPage(
-                                  threadId: threadId,
-                                  storeName: store.name,
-                                ),
-                              ),
-                            );
-                          } on ChatCannotMessageSelfException {
-                            if (mounted) {
-                              _toast('No puedes chatear contigo mismo.');
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              _toast(
-                                e.toString().replaceFirst('Exception: ', ''),
-                              );
-                            }
-                          } finally {
-                            if (dialogContext.mounted) {
-                              setLocal(() => busy = false);
-                            }
-                          }
-                        },
-                  child: busy
-                      ? SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Theme.of(dialogSetContext).colorScheme.onPrimary,
-                          ),
-                        )
-                      : const Text('Sí, abrir chat'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+      ),
+    );
+
+    String? threadId;
+    String? introError;
+    try {
+      final dto = await ChatService.createOrGetChatThread(
+        offerId: offer.catalogThreadOfferId,
+        purchaseIntent: true,
+      );
+      final id = (dto['id'] ?? dto['Id'])?.toString().trim() ?? '';
+      if (!id.startsWith('cth_')) {
+        throw Exception('Respuesta de chat inválida.');
+      }
+      threadId = id;
+
+      try {
+        await sendPurchaseInterestIntro(id, offer);
+      } catch (e) {
+        introError = e.toString().replaceFirst('Exception: ', '');
+      }
+
+      unawaited(
+        RecommendationsService.postInteraction(
+          offerId: offer.id,
+          eventType: 'chat_start',
+        ),
+      );
+    } on ChatCannotMessageSelfException {
+      if (navigator.canPop()) navigator.pop();
+      _toast('No puedes chatear contigo mismo.');
+      return;
+    } on UnauthorizedException {
+      if (navigator.canPop()) navigator.pop();
+      _toast('Tu sesión expiró. Inicia sesión nuevamente.');
+      return;
+    } catch (e) {
+      if (navigator.canPop()) navigator.pop();
+      _toast(e.toString().replaceFirst('Exception: ', ''));
+      return;
+    }
+
+    if (navigator.canPop()) navigator.pop();
+    if (!mounted) return;
+    final id = threadId;
+
+    if (introError != null) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          'El chat se abrió, pero el primer mensaje no pudo enviarse: '
+          '$introError. Escribe desde el chat.',
+        ),
+      ));
+    }
+
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatThreadPage(
+          threadId: id,
+          storeName: store.name,
+        ),
+      ),
     );
   }
 
@@ -358,20 +367,69 @@ class _PublicOfferPageState extends State<PublicOfferPage> {
     final offer = data.offer;
     final store = data.store;
     final gallery = _allImages(offer);
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+    final isTablet = ResponsiveLayout.isTablet(context);
+    final isWide = isDesktop || isTablet;
+
+    if (isWide) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1080),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: isDesktop ? 420 : 340,
+                      child: _buildGallerySection(offer, gallery, compact: true),
+                    ),
+                    const SizedBox(width: 28),
+                    Expanded(
+                      child: _buildDetailsSection(offer, store),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        _Hero(
-          imageUrl: gallery.isNotEmpty
-              ? MediaService.resolveMediaUrl(gallery[_galleryIndex])
-              : null,
-          isService: offer.isService,
+        _buildGallerySection(offer, gallery, compact: false),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          child: _buildDetailsSection(offer, store),
         ),
-        if (gallery.length > 1)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      ],
+    );
+  }
+
+  Widget _buildGallerySection(
+    OfferModel offer,
+    List<String> gallery, {
+    required bool compact,
+  }) {
+    final hero = _Hero(
+      imageUrl: gallery.isNotEmpty
+          ? MediaService.resolveMediaUrl(gallery[_galleryIndex])
+          : null,
+      isService: offer.isService,
+      rounded: compact,
+    );
+
+    final thumbs = gallery.length > 1
+        ? Padding(
+            padding: EdgeInsets.fromLTRB(compact ? 0 : 16, 10, compact ? 0 : 16, 0),
             child: SizedBox(
               height: 64,
               child: ListView.separated(
@@ -416,137 +474,157 @@ class _PublicOfferPageState extends State<PublicOfferPage> {
                 },
               ),
             ),
+          )
+        : const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [hero, thumbs],
+    );
+  }
+
+  Widget _buildDetailsSection(OfferModel offer, StoreBadgeModel store) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (offer.primaryCategoryTag != null)
+          Text(
+            offer.primaryCategoryTag!.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.primaryColor,
+              letterSpacing: 0.7,
+            ),
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (offer.primaryCategoryTag != null)
-                Text(
-                  offer.primaryCategoryTag!.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.primaryColor,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-              const SizedBox(height: 4),
-              Text(
-                offer.title.isNotEmpty ? offer.title : 'Oferta sin titulo',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -0.3,
-                  height: 1.2,
-                ),
+        const SizedBox(height: 4),
+        Text(
+          offer.title.isNotEmpty ? offer.title : 'Oferta sin titulo',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: AppTheme.textPrimary,
+            letterSpacing: -0.3,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _PriceRow(offer: offer),
+        const SizedBox(height: 16),
+        _ActionsRow(
+          offer: offer,
+          onLikeTap: () => _toggleLike(offer),
+          onSaveTap: (saved) => _toggleSave(offer, saved),
+        ),
+        if (offer.description.trim().isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _Card(
+            title: 'Descripcion',
+            child: Text(
+              offer.description,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textPrimary,
+                height: 1.45,
               ),
-              const SizedBox(height: 10),
-              _PriceRow(offer: offer),
-              const SizedBox(height: 16),
-              _ActionsRow(
-                offer: offer,
-                onLikeTap: () => _toggleLike(offer),
-                onSaveTap: (saved) => _toggleSave(offer, saved),
-              ),
-              if (offer.description.trim().isNotEmpty) ...[
-                const SizedBox(height: 18),
-                _Card(
-                  title: 'Descripcion',
-                  child: Text(
-                    offer.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textPrimary,
-                      height: 1.45,
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        _StoreCallout(
+          store: store,
+          onOpen: () => _openStore(context, store),
+        ),
+        if (offer.tags.length > 1) ...[
+          const SizedBox(height: 16),
+          _Card(
+            title: 'Etiquetas',
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final t in offer.tags.skip(1))
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.selectedColor,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      t,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   ),
-                ),
               ],
-              const SizedBox(height: 16),
-              _StoreCallout(
-                store: store,
-                onOpen: () => _openStore(context, store),
-              ),
-              if (offer.tags.length > 1) ...[
-                const SizedBox(height: 16),
-                _Card(
-                  title: 'Etiquetas',
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final t in offer.tags.skip(1))
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.selectedColor,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            t,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              ValueListenableBuilder<UserProfileModel?>(
-                valueListenable: SessionService.currentUserNotifier,
-                builder: (context, me, _) {
-                  final owner = store.ownerUserId.trim();
-                  final ownOffer = owner.isNotEmpty &&
-                      me != null &&
-                      me.id.isNotEmpty &&
-                      owner == me.id.trim();
-                  return SizedBox(
-                    width: double.infinity,
-                    child: offer.isEmergentRoutePublication
-                        ? FilledButton.icon(
-                            onPressed: ownOffer ? null : _onEmergentSubscribeTap,
-                            icon: const Icon(Icons.route_outlined, size: 18),
-                            label: const Text('Suscribirse'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          )
-                        : FilledButton.icon(
-                            onPressed: ownOffer
-                                ? null
-                                : () => _openComprarChatFlow(offer, store),
-                            icon:
-                                const Icon(Icons.shopping_cart_outlined, size: 18),
-                            label: const Text('Comprar (Chat)'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                  );
-                },
-              ),
-            ],
+            ),
           ),
+        ],
+        const SizedBox(height: 16),
+        OfferCommentsSection(
+          offerId: offer.id,
+          storeOwnerUserId: store.ownerUserId,
+          onCommentCountChanged: (n) {
+            if (!mounted) return;
+            final current = _data;
+            if (current == null) return;
+            if (current.offer.publicCommentCount == n) return;
+            setState(() {
+              _data = PublicOfferCardResponse(
+                offer: current.offer.copyWith(publicCommentCount: n),
+                store: current.store,
+              );
+            });
+          },
+        ),
+        const SizedBox(height: 20),
+        ValueListenableBuilder<UserProfileModel?>(
+          valueListenable: SessionService.currentUserNotifier,
+          builder: (context, me, _) {
+            final owner = store.ownerUserId.trim();
+            final ownOffer = owner.isNotEmpty &&
+                me != null &&
+                me.id.isNotEmpty &&
+                owner == me.id.trim();
+            return SizedBox(
+              width: double.infinity,
+              child: offer.isEmergentRoutePublication
+                  ? FilledButton.icon(
+                      onPressed: ownOffer ? null : _onEmergentSubscribeTap,
+                      icon: const Icon(Icons.route_outlined, size: 18),
+                      label: const Text('Suscribirse'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    )
+                  : FilledButton.icon(
+                      onPressed: ownOffer
+                          ? null
+                          : () => _openComprarChatFlow(offer, store),
+                      icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                      label: const Text('Comprar (Chat)'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+            );
+          },
         ),
       ],
     );
@@ -554,10 +632,14 @@ class _PublicOfferPageState extends State<PublicOfferPage> {
 
   static List<String> _allImages(OfferModel offer) {
     final out = <String>[];
-    if ((offer.imageUrl ?? '').trim().isNotEmpty) out.add(offer.imageUrl!.trim());
+    if ((offer.imageUrl ?? '').trim().isNotEmpty) {
+      final primary = offer.imageUrl!.trim();
+      if (!isToolPlaceholderUrl(primary)) out.add(primary);
+    }
     for (final url in offer.imageUrls) {
-      if (url.trim().isEmpty) continue;
-      if (!out.contains(url.trim())) out.add(url.trim());
+      final t = url.trim();
+      if (t.isEmpty || isToolPlaceholderUrl(t)) continue;
+      if (!out.contains(t)) out.add(t);
     }
     return out;
   }
@@ -581,12 +663,18 @@ void _openStore(BuildContext context, StoreBadgeModel badge) {
 class _Hero extends StatelessWidget {
   final String? imageUrl;
   final bool isService;
+  final bool rounded;
 
-  const _Hero({required this.imageUrl, required this.isService});
+  const _Hero({
+    required this.imageUrl,
+    required this.isService,
+    this.rounded = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
+    final radius = rounded ? BorderRadius.circular(20) : BorderRadius.zero;
+    final hero = AspectRatio(
       aspectRatio: 4 / 3,
       child: Stack(
         fit: StackFit.expand,
@@ -618,6 +706,17 @@ class _Hero extends StatelessWidget {
               child: _ServicePill(),
             ),
         ],
+      ),
+    );
+    if (!rounded) return hero;
+    return ClipRRect(
+      borderRadius: radius,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceMutedColor,
+          borderRadius: radius,
+        ),
+        child: hero,
       ),
     );
   }
@@ -917,14 +1016,11 @@ class _StoreCallout extends StatelessWidget {
   }
 
   Widget _fallback() {
-    return Container(
-      color: AppTheme.surfaceMutedColor,
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.storefront_outlined,
-        size: 22,
-        color: AppTheme.textSecondary,
-      ),
+    return const StoreImagePlaceholder(
+      width: 44,
+      height: 44,
+      iconSize: 22,
+      borderRadius: BorderRadius.zero,
     );
   }
 }

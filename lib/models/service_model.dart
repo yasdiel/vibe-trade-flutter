@@ -27,7 +27,7 @@ class ServiceModel {
 
   final String intellectualProperty;
 
-  // El servicio admite multiples fotos (minimo 1).
+  // Foto opcional (maximo una en la UI actual).
   final List<String> imagePaths;
 
   final DateTime createdAt;

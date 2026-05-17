@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:vibe_trade_v1/services/auth_service.dart';
+import 'package:vibe_trade_v1/utils/image_upload_limits.dart';
 import '../../theme/app_theme.dart';
 
 class ImageAccount extends StatefulWidget {
@@ -27,11 +28,18 @@ class _ImageAccountState extends State<ImageAccount> {
 
   Future<void> _seleccionarImagen() async {
     final XFile? imagen = await _picker.pickImage(source: ImageSource.gallery);
-    if (imagen != null) {
-      setState(() {
-        _imagenSeleccionada = File(imagen.path);
-      });
+    if (imagen == null) return;
+    final file = File(imagen.path);
+    final sizeError = await imageFileSizeError(file);
+    if (sizeError != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sizeError)),
+      );
+      return;
     }
+    setState(() => _imagenSeleccionada = file);
   }
 
   Future<void> _guardarFoto() async {

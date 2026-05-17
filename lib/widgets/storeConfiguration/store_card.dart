@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:vibe_trade_v1/models/store_model.dart';
 import 'package:vibe_trade_v1/services/market_service.dart';
 import 'package:vibe_trade_v1/services/media_service.dart';
+import 'package:vibe_trade_v1/utils/image_upload_limits.dart';
+import 'package:vibe_trade_v1/widgets/storeConfiguration/store_image_placeholder.dart';
 import 'package:vibe_trade_v1/services/session_service.dart';
 import 'package:vibe_trade_v1/services/store_service.dart';
 import 'package:vibe_trade_v1/theme/app_theme.dart';
@@ -35,7 +37,17 @@ class _StoreCardState extends State<StoreCard> {
   Future<void> _pickImage() async {
     final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked == null) return;
-    setState(() => _pendingImage = File(picked.path));
+    final file = File(picked.path);
+    final sizeError = await imageFileSizeError(file);
+    if (sizeError != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sizeError)),
+      );
+      return;
+    }
+    setState(() => _pendingImage = file);
   }
 
   Future<void> _saveImage() async {
@@ -105,9 +117,6 @@ class _StoreCardState extends State<StoreCard> {
   Widget _buildAvatar() {
     final pending = _pendingImage;
     final savedPath = widget.store.imagePath;
-    final fallbackLetter = widget.store.name.trim().isNotEmpty
-        ? widget.store.name.trim()[0].toUpperCase()
-        : 'T';
 
     Widget child;
     if (pending != null) {
@@ -121,7 +130,11 @@ class _StoreCardState extends State<StoreCard> {
         width: 64,
         height: 64,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _fallbackAvatar(fallbackLetter),
+        errorBuilder: (_, __, ___) => const StoreImagePlaceholder(
+          width: 64,
+          height: 64,
+          iconSize: 28,
+        ),
       );
     } else if (savedPath.isNotEmpty && File(savedPath).existsSync()) {
       child = Image.file(
@@ -131,35 +144,16 @@ class _StoreCardState extends State<StoreCard> {
         fit: BoxFit.cover,
       );
     } else {
-      child = _fallbackAvatar(fallbackLetter);
+      child = const StoreImagePlaceholder(
+        width: 64,
+        height: 64,
+        iconSize: 28,
+      );
     }
 
     return GestureDetector(
       onTap: _saving ? null : _pickImage,
       child: ClipRRect(borderRadius: BorderRadius.circular(12), child: child),
-    );
-  }
-
-  Widget _fallbackAvatar(String letter) {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
     );
   }
 

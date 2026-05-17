@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:vibe_trade_v1/config/env.dart';
@@ -16,7 +15,8 @@ class AuthService {
   static String get _logoutUrl => '$baseUrl/Auth/logout';
 
   static String get authTokenKey => SessionService.authTokenKey;
-  static String get authVerifyResponseKey => SessionService.authVerifyResponseKey;
+  static String get authVerifyResponseKey =>
+      SessionService.authVerifyResponseKey;
   static String get authUserKey => SessionService.authUserKey;
 
   static ValueNotifier<bool> get isLoggedInNotifier =>
@@ -177,10 +177,6 @@ class AuthService {
     String code,
     String? mode,
   ) {
-    return <String, dynamic>{
-      'phone': phone,
-      'code': code,
-      'mode': mode ?? '',
-    };
+    return <String, dynamic>{'phone': phone, 'code': code, 'mode': mode ?? ''};
   }
 }
